@@ -31,7 +31,7 @@ func (Command) Run(args []string) (app.Result, error) {
 	}
 
 	path := fs.Arg(0)
-	if detect.IsSensitivePath(path) {
+	if detect.IsSensitivePathResolved(path) {
 		return app.Result{}, fmt.Errorf("refusing sensitive path %q", path)
 	}
 

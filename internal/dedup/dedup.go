@@ -94,25 +94,80 @@ func exactDuplicates(occurrences []sentenceOccurrence) []Duplicate {
 }
 
 func nearDuplicates(occurrences []sentenceOccurrence, threshold float64) []Duplicate {
+	// Use algorithmic reduction: group by approximate word set first
+	// to avoid comparing completely dissimilar sentences
+	candidates := selectCandidatePairs(occurrences, threshold)
+	
 	out := make([]Duplicate, 0)
-	for i := 0; i < len(occurrences); i++ {
-		for j := i + 1; j < len(occurrences); j++ {
-			if occurrences[i].normalized == occurrences[j].normalized {
-				continue
-			}
-			similarity := jaccard(occurrences[i].normalized, occurrences[j].normalized)
-			if similarity < threshold {
-				continue
-			}
-			out = append(out, Duplicate{
-				Sentence:   occurrences[i].raw + " ~ " + occurrences[j].raw,
-				Locations:  []string{occurrences[i].location, occurrences[j].location},
-				Similarity: similarity,
-			})
+	for _, pair := range candidates {
+		i, j := pair[0], pair[1]
+		if occurrences[i].normalized == occurrences[j].normalized {
+			continue
 		}
+		similarity := jaccard(occurrences[i].normalized, occurrences[j].normalized)
+		if similarity < threshold {
+			continue
+		}
+		out = append(out, Duplicate{
+			Sentence:   occurrences[i].raw + " ~ " + occurrences[j].raw,
+			Locations:  []string{occurrences[i].location, occurrences[j].location},
+			Similarity: similarity,
+		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Similarity > out[j].Similarity })
 	return out
+}
+
+// selectCandidatePairs uses algorithmic reduction to select pairs worth comparing
+// It groups sentences by word count and only compares within similar word count ranges
+func selectCandidatePairs(occurrences []sentenceOccurrence, threshold float64) [][2]int {
+	// Group by word count
+	byWordCount := make(map[int][]int)
+	for idx, occ := range occurrences {
+		wordCount := len(strings.Fields(occ.normalized))
+		byWordCount[wordCount] = append(byWordCount[wordCount], idx)
+	}
+
+	// Find word count ranges that could have similarity >= threshold
+	// Sentences with very different word counts can't have high similarity
+	var pairs [][2]int
+	
+	// For each group, compare within the group and with adjacent word counts
+	sortedCounts := make([]int, 0, len(byWordCount))
+	for wc := range byWordCount {
+		sortedCounts = append(sortedCounts, wc)
+	}
+	sort.Ints(sortedCounts)
+	
+	for _, wc := range sortedCounts {
+		indices := byWordCount[wc]
+		
+		// Compare within the same word count
+		for i := 0; i < len(indices); i++ {
+			for j := i + 1; j < len(indices); j++ {
+				if indices[i] < indices[j] {
+					pairs = append(pairs, [2]int{indices[i], indices[j]})
+				}
+			}
+		}
+		
+		// Compare with slightly different word counts (allow ±1)
+		for nextWC := wc + 1; nextWC <= wc+1 && nextWC < len(sortedCounts); nextWC++ {
+			if nextIndices, ok := byWordCount[nextWC]; ok {
+				for _, i := range indices {
+					for _, j := range nextIndices {
+						if i < j {
+							pairs = append(pairs, [2]int{i, j})
+						} else {
+							pairs = append(pairs, [2]int{j, i})
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return pairs
 }
 
 func normalizeSentence(sentence string) string {

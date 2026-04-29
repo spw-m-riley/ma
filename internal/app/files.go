@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -20,7 +21,11 @@ func WriteWithBackup(path string, original string, output string) error {
 
 	restore := func(writeErr error) error {
 		_ = os.Remove(tempPath)
-		_ = os.WriteFile(path, []byte(original), info.Mode().Perm())
+		restoreErr := os.WriteFile(path, []byte(original), info.Mode().Perm())
+		if restoreErr != nil {
+			// Wrap both the original error and the restore error
+			return fmt.Errorf("write failed: %w (and restore failed: %v)", writeErr, restoreErr)
+		}
 		return writeErr
 	}
 

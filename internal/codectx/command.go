@@ -23,7 +23,7 @@ func (SkeletonCommand) Run(args []string) (app.Result, error) {
 		return app.Result{}, fmt.Errorf("usage: ma skeleton <file> [--json]")
 	}
 	path := args[0]
-	if detect.IsSensitivePath(path) {
+	if detect.IsSensitivePathResolved(path) {
 		return app.Result{}, fmt.Errorf("refusing sensitive path %q", path)
 	}
 
@@ -61,7 +61,7 @@ func (TrimImportsCommand) Run(args []string) (app.Result, error) {
 		return app.Result{}, fmt.Errorf("usage: ma trim-imports <file> [--json]")
 	}
 	path := args[0]
-	if detect.IsSensitivePath(path) {
+	if detect.IsSensitivePathResolved(path) {
 		return app.Result{}, fmt.Errorf("refusing sensitive path %q", path)
 	}
 

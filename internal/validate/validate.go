@@ -71,7 +71,10 @@ func (r Report) Error() error {
 	if r.Valid {
 		return nil
 	}
-	return fmt.Errorf("validation failed")
+	if len(r.Errors) == 0 {
+		return fmt.Errorf("validation failed")
+	}
+	return fmt.Errorf("validation failed: %s", strings.Join(r.Errors, ", "))
 }
 
 func extractCodeBlocks(input string) []string {

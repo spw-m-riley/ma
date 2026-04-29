@@ -2,6 +2,7 @@ package detect
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -102,4 +103,31 @@ func IsSensitivePath(path string) bool {
 	}
 
 	return false
+}
+
+// IsSensitivePathResolved checks if a path is sensitive, including resolution of symlinks.
+// If the path is a symlink, it resolves the target and checks if the target is sensitive.
+// If symlink resolution fails (broken symlink), it fails closed and returns true.
+// If the path is not a symlink and the file doesn't exist, it returns false (normal missing-file behavior).
+func IsSensitivePathResolved(path string) bool {
+	// First check the lexical path
+	if IsSensitivePath(path) {
+		return true
+	}
+
+	// Try to resolve symlinks
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		// If we get an error and the path looks like a symlink, fail closed
+		lstat, err2 := os.Lstat(path)
+		if err2 == nil && (lstat.Mode()&os.ModeSymlink) != 0 {
+			// It's a symlink that we couldn't resolve (broken link) - fail closed
+			return true
+		}
+		// Not a symlink or a regular file error - return false (normal missing file)
+		return false
+	}
+
+	// Check if the resolved path is sensitive
+	return IsSensitivePath(resolved)
 }

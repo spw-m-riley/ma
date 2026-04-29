@@ -71,6 +71,32 @@ func TestCompactCollapsesDuplicateReadsToLatest(t *testing.T) {
 	}
 }
 
+func TestCompactPreservesDifferentToolsOnSameFile(t *testing.T) {
+	// A read and an edit of the same file should both be kept - they're different operations
+	messages := []Message{
+		{Role: "assistant", ToolName: "view", FilePath: "config.json", Content: "view content"},
+		{Role: "assistant", ToolName: "edit", FilePath: "config.json", Content: "edit content"},
+	}
+
+	compacted := Compact(messages)
+	if len(compacted) != 2 {
+		t.Fatalf("expected both view and edit messages to remain, got %d", len(compacted))
+	}
+}
+
+func TestCompactPreservesDifferentRolesOnSameFile(t *testing.T) {
+	// Messages from different roles (assistant vs user) on same file should be kept
+	messages := []Message{
+		{Role: "user", ToolName: "view", FilePath: "app.go", Content: "user view"},
+		{Role: "assistant", ToolName: "view", FilePath: "app.go", Content: "assistant view"},
+	}
+
+	compacted := Compact(messages)
+	if len(compacted) != 2 {
+		t.Fatalf("expected both role messages to remain, got %d", len(compacted))
+	}
+}
+
 func BenchmarkCompactHistory(b *testing.B) {
 	inputPath := filepath.Join("..", "..", "testdata", "history", "transcript.json")
 	input, err := os.ReadFile(inputPath)

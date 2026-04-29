@@ -36,3 +36,31 @@ func TestMinifyYAMLRejectsUnsupportedFeatures(t *testing.T) {
 		t.Fatalf("expected unsupported yaml feature error")
 	}
 }
+
+func TestMinifyYAMLAcceptsLiteralAmpersand(t *testing.T) {
+	// Literal & in a scalar value (not a YAML anchor) should be accepted
+	input := "company: AT&T\nport: 8080\n"
+	
+	got, err := MinifyYAML(input)
+	if err != nil {
+		t.Fatalf("expected no error for literal & in value, got %v", err)
+	}
+	
+	if !strings.Contains(got, "AT&T") {
+		t.Fatalf("expected literal & to be preserved, got %q", got)
+	}
+}
+
+func TestMinifyYAMLAcceptsLiteralAsterisk(t *testing.T) {
+	// Literal * in a scalar value (not a YAML alias) should be accepted
+	input := "note: This is a wildcard * match\nmode: regex\n"
+	
+	got, err := MinifyYAML(input)
+	if err != nil {
+		t.Fatalf("expected no error for literal * in value, got %v", err)
+	}
+	
+	if !strings.Contains(got, "*") {
+		t.Fatalf("expected literal * to be preserved, got %q", got)
+	}
+}

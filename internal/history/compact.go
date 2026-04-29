@@ -36,7 +36,13 @@ func Compact(messages []Message) []Message {
 }
 
 func collapseDuplicateReads(messages []Message) []Message {
-	latestByFile := make(map[string]int)
+	type collapseKey struct {
+		filePath string
+		toolName string
+		role     string
+	}
+	
+	latestByKey := make(map[collapseKey]int)
 	keep := make([]bool, len(messages))
 	for i := range keep {
 		keep[i] = true
@@ -46,10 +52,15 @@ func collapseDuplicateReads(messages []Message) []Message {
 		if message.FilePath == "" {
 			continue
 		}
-		if previous, ok := latestByFile[message.FilePath]; ok {
+		key := collapseKey{
+			filePath: message.FilePath,
+			toolName: message.ToolName,
+			role:     message.Role,
+		}
+		if previous, ok := latestByKey[key]; ok {
 			keep[previous] = false
 		}
-		latestByFile[message.FilePath] = index
+		latestByKey[key] = index
 	}
 
 	out := make([]Message, 0, len(messages))

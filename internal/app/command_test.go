@@ -7,7 +7,8 @@ import (
 )
 
 type stubCommand struct {
-	name string
+	name   string
+	result Result
 }
 
 func (c stubCommand) Name() string {
@@ -60,5 +61,63 @@ func TestAppRunWritesCommandResult(t *testing.T) {
 
 	if !strings.Contains(stdout.String(), "compress changed=false") {
 		t.Fatalf("expected command output to be rendered, got %q", stdout.String())
+	}
+}
+
+func TestHumanModeOutputWithFindings(t *testing.T) {
+	var stdout bytes.Buffer
+
+	result := Result{
+		Command:  "compress",
+		Changed:  true,
+		Output:   "compressed output",
+		Findings: []string{"path mismatch", "bullet count drift"},
+	}
+
+	err := WriteResult(&stdout, result, false)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	output := stdout.String()
+	
+	// Should contain the output body
+	if !strings.Contains(output, "compressed output") {
+		t.Fatalf("expected output to contain body, got %q", output)
+	}
+	
+	// Should contain the findings/warnings
+	if !strings.Contains(output, "path mismatch") {
+		t.Fatalf("expected output to contain findings, got %q", output)
+	}
+	if !strings.Contains(output, "bullet count drift") {
+		t.Fatalf("expected output to contain all findings, got %q", output)
+	}
+}
+
+func TestHumanModeOutputWithoutBodyShowsCommandAndFindings(t *testing.T) {
+	var stdout bytes.Buffer
+
+	result := Result{
+		Command:  "validate",
+		Changed:  false,
+		Findings: []string{"heading mismatch", "code block mismatch"},
+	}
+
+	err := WriteResult(&stdout, result, false)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	output := stdout.String()
+	
+	// Should contain the command summary line
+	if !strings.Contains(output, "validate") {
+		t.Fatalf("expected output to show command, got %q", output)
+	}
+	
+	// Should still contain the findings even without body
+	if !strings.Contains(output, "heading mismatch") {
+		t.Fatalf("expected output to contain findings, got %q", output)
 	}
 }

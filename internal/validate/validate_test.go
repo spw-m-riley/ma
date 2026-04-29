@@ -90,3 +90,32 @@ func contains(values []string, want string) bool {
 	}
 	return false
 }
+
+func TestReportErrorIncludesDetailedErrors(t *testing.T) {
+	report := Report{
+		Valid: false,
+		Errors: []string{
+			"heading mismatch",
+			"code block mismatch",
+			"url mismatch",
+		},
+	}
+	
+	err := report.Error()
+	if err == nil {
+		t.Fatalf("expected error to be non-nil")
+	}
+	
+	errMsg := err.Error()
+	
+	// Should include all three detailed errors, not just "validation failed"
+	if !strings.Contains(errMsg, "heading mismatch") {
+		t.Fatalf("expected 'heading mismatch' in error, got: %q", errMsg)
+	}
+	if !strings.Contains(errMsg, "code block mismatch") {
+		t.Fatalf("expected 'code block mismatch' in error, got: %q", errMsg)
+	}
+	if !strings.Contains(errMsg, "url mismatch") {
+		t.Fatalf("expected 'url mismatch' in error, got: %q", errMsg)
+	}
+}

@@ -54,9 +54,22 @@ func validateSupportedYAMLLine(line string) error {
 	if strings.Contains(line, "\t") {
 		return fmt.Errorf("unsupported yaml feature: tabs")
 	}
-	if strings.Contains(trimmed, "<<:") || strings.Contains(trimmed, "&") || strings.Contains(trimmed, "*") {
-		return fmt.Errorf("unsupported yaml feature: anchors or aliases")
+	
+	// Reject merge key syntax (<<:)
+	if strings.Contains(trimmed, "<<:") {
+		return fmt.Errorf("unsupported yaml feature: merge keys")
 	}
+	
+	// Reject YAML anchors (& followed by identifier at start of value)
+	if strings.Contains(trimmed, ": &") || strings.HasPrefix(trimmed, "&") {
+		return fmt.Errorf("unsupported yaml feature: anchors")
+	}
+	
+	// Reject YAML aliases (* followed by identifier)
+	if strings.HasPrefix(trimmed, "*") || strings.Contains(trimmed, ": *") {
+		return fmt.Errorf("unsupported yaml feature: aliases")
+	}
+	
 	return nil
 }
 
