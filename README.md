@@ -1,15 +1,65 @@
 # ma
 
-`ma` is a deterministic, offline Go CLI for reducing LLM context payload size without calling external APIs.
+`ma` is a deterministic, offline Go CLI for reducing LLM context payload size without making external API calls.
 
-This repository is under active implementation. The final command set will cover:
+## What it covers
 
-- prose compression
-- markdown optimization
-- schema minification
-- code skeleton extraction
-- import trimming
-- instruction-file deduplication
-- transcript compaction
+`ma` currently provides:
 
-RTK remains the separate tool-output filtering layer; `ma` does not proxy shell commands.
+| Command | Purpose |
+| --- | --- |
+| `ma compress <file>` | Deterministic prose compression for markdown/text-style guidance files |
+| `ma validate <original> <candidate>` | Structural preservation checks for headings, code fences, URLs, paths, and bullet drift |
+| `ma optimize-md <file>` | Markdown structure cleanup for blank lines, list markers, and tables |
+| `ma minify-schema <file>` | JSON/YAML schema minification by removing verbose metadata |
+| `ma skeleton <file>` | Code skeleton extraction for Go and heuristic signature-only reduction for TS/JS |
+| `ma trim-imports <file>` | Import-block summarization for TS/JS-style files |
+| `ma dedup <path...>` | Exact and near-duplicate reporting across instruction-style documents |
+| `ma compact-history <transcript>` | Transcript compaction for an explicit JSON message contract |
+
+All commands are deterministic and offline.
+
+## Boundaries
+
+- `ma` does **not** proxy shell commands or reduce tool output streams. Use **RTK** for that layer.
+- `ma` does **not** embed an LLM or call any remote API.
+- For prose files, `ma compress` handles the deterministic pass. A Copilot agent may optionally do a second semantic-polish pass afterward, then re-run `ma validate`.
+
+## Shared write contract
+
+Commands are read-only by default.
+
+Mutating commands (`compress`, `optimize-md`, `minify-schema`, `compact-history`) only write when `--write` is passed. On write:
+
+1. the original file is backed up as `<path>.ma.bak`
+2. transformed output is written through a temp file in the same directory
+3. the final file is swapped into place
+
+## Build
+
+```bash
+go build ./cmd/ma
+```
+
+## Examples
+
+```bash
+ma compress CLAUDE.md --json
+ma compress --write CLAUDE.md && ma validate CLAUDE.md.ma.bak CLAUDE.md
+
+ma optimize-md README.md --json
+ma minify-schema schema.json --write
+
+ma skeleton internal/service.go
+ma trim-imports src/file.ts --json
+
+ma dedup .github/copilot-instructions.md instructions/*.instructions.md
+ma compact-history transcript.json --json
+```
+
+## Relationship to RTK
+
+`ma` and RTK are complementary:
+
+- use **RTK** to reduce noisy command output before it enters the context window
+- use **ma** to reduce static artifacts and transcript payloads already on disk
