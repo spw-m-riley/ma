@@ -182,3 +182,23 @@ func TestDedupAllowsTrailingJSONFlag(t *testing.T) {
 		t.Fatalf("expected json command output, got %q", stdout.String())
 	}
 }
+
+func TestCompactHistoryAllowsTrailingJSONFlag(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{
+		"compact-history",
+		filepath.Join("..", "..", "testdata", "history", "transcript.json"),
+		"--json",
+	})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"compact-history\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}

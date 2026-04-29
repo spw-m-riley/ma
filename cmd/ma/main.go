@@ -9,6 +9,7 @@ import (
 	"github.com/spw-m-riley/ma/internal/app"
 	codectxcmd "github.com/spw-m-riley/ma/internal/codectx"
 	dedupcmd "github.com/spw-m-riley/ma/internal/dedup"
+	historycmd "github.com/spw-m-riley/ma/internal/history"
 	markdowncmd "github.com/spw-m-riley/ma/internal/markdown"
 	"github.com/spw-m-riley/ma/internal/prose"
 	schemacmd "github.com/spw-m-riley/ma/internal/schema"
@@ -36,7 +37,7 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 		newSkeletonCommand(stdout, &jsonOutput),
 		newTrimImportsCommand(stdout, &jsonOutput),
 		newDedupCommand(stdout, &jsonOutput),
-		notImplementedCommand("compact-history"),
+		newCompactHistoryCommand(stdout, &jsonOutput),
 	)
 
 	return root
@@ -181,6 +182,31 @@ func newDedupCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 			return app.WriteResult(stdout, result, *jsonOutput)
 		},
 	}
+
+	return command
+}
+
+func newCompactHistoryCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	var write bool
+
+	command := &cobra.Command{
+		Use:   "compact-history <transcript>",
+		Short: "Compact transcript history from an explicit JSON contract",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			runArgs := []string{args[0]}
+			if write {
+				runArgs = append([]string{"--write"}, runArgs...)
+			}
+
+			result, err := historycmd.NewCommand().Run(runArgs)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+	command.Flags().BoolVar(&write, "write", false, "write compacted transcript back to file")
 
 	return command
 }

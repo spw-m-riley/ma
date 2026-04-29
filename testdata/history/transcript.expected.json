@@ -1,0 +1,1 @@
+[{"role":"user","content":"Show me the current test failures.","timestamp":"2026-04-29T10:00:00Z"},{"role":"assistant","content":"FAIL x8","toolName":"bash","timestamp":"2026-04-29T10:00:10Z"}]
