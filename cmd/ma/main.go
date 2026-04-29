@@ -7,7 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spw-m-riley/ma/internal/app"
+	markdowncmd "github.com/spw-m-riley/ma/internal/markdown"
 	"github.com/spw-m-riley/ma/internal/prose"
+	schemacmd "github.com/spw-m-riley/ma/internal/schema"
 	validatecmd "github.com/spw-m-riley/ma/internal/validate"
 )
 
@@ -27,8 +29,8 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 	root.AddCommand(
 		newCompressCommand(stdout, &jsonOutput),
 		newValidateCommand(stdout, &jsonOutput),
-		notImplementedCommand("optimize-md"),
-		notImplementedCommand("minify-schema"),
+		newOptimizeMarkdownCommand(stdout, &jsonOutput),
+		newMinifySchemaCommand(stdout, &jsonOutput),
 		notImplementedCommand("skeleton"),
 		notImplementedCommand("trim-imports"),
 		notImplementedCommand("dedup"),
@@ -76,6 +78,56 @@ func newValidateCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 			return app.WriteResult(stdout, result, *jsonOutput)
 		},
 	}
+
+	return command
+}
+
+func newOptimizeMarkdownCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	var write bool
+
+	command := &cobra.Command{
+		Use:   "optimize-md <file>",
+		Short: "Optimize markdown structure deterministically",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			runArgs := []string{args[0]}
+			if write {
+				runArgs = append([]string{"--write"}, runArgs...)
+			}
+
+			result, err := markdowncmd.NewCommand().Run(runArgs)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+	command.Flags().BoolVar(&write, "write", false, "write optimized markdown back to file")
+
+	return command
+}
+
+func newMinifySchemaCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	var write bool
+
+	command := &cobra.Command{
+		Use:   "minify-schema <file>",
+		Short: "Minify JSON or YAML schema files",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			runArgs := []string{args[0]}
+			if write {
+				runArgs = append([]string{"--write"}, runArgs...)
+			}
+
+			result, err := schemacmd.NewCommand().Run(runArgs)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+	command.Flags().BoolVar(&write, "write", false, "write minified schema back to file")
 
 	return command
 }

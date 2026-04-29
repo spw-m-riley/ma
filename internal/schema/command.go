@@ -1,13 +1,13 @@
-package prose
+package schema
 
 import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spw-m-riley/ma/internal/app"
 	"github.com/spw-m-riley/ma/internal/detect"
-	"github.com/spw-m-riley/ma/internal/validate"
 )
 
 type Command struct{}
@@ -17,17 +17,17 @@ func NewCommand() Command {
 }
 
 func (Command) Name() string {
-	return "compress"
+	return "minify-schema"
 }
 
 func (Command) Run(args []string) (app.Result, error) {
-	fs := flag.NewFlagSet("compress", flag.ContinueOnError)
-	write := fs.Bool("write", false, "write output back to file")
+	fs := flag.NewFlagSet("minify-schema", flag.ContinueOnError)
+	write := fs.Bool("write", false, "write minified schema back to file")
 	if err := fs.Parse(args); err != nil {
 		return app.Result{}, err
 	}
 	if fs.NArg() != 1 {
-		return app.Result{}, fmt.Errorf("usage: ma compress <file> [--write] [--json]")
+		return app.Result{}, fmt.Errorf("usage: ma minify-schema <file> [--write] [--json]")
 	}
 
 	path := fs.Arg(0)
@@ -41,16 +41,10 @@ func (Command) Run(args []string) (app.Result, error) {
 	}
 	input := string(inputBytes)
 
-	if detect.Classify(path, input) != detect.NaturalLanguage {
-		return app.Result{}, fmt.Errorf("compress only supports natural language files")
+	output, err := minifyByExtension(path, input)
+	if err != nil {
+		return app.Result{}, err
 	}
-
-	output := Compress(input)
-	report := validate.Compare(input, output)
-	if !report.Valid {
-		return app.Result{}, report.Error()
-	}
-
 	if *write {
 		if err := app.WriteWithBackup(path, input, output); err != nil {
 			return app.Result{}, err
@@ -58,10 +52,20 @@ func (Command) Run(args []string) (app.Result, error) {
 	}
 
 	return app.Result{
-		Command:  "compress",
-		Changed:  output != input,
-		Stats:    app.Measure(input, output),
-		Findings: report.Warnings,
-		Output:   output,
+		Command: "minify-schema",
+		Changed: output != input,
+		Stats:   app.Measure(input, output),
+		Output:  output,
 	}, nil
+}
+
+func minifyByExtension(path string, input string) (string, error) {
+	switch filepath.Ext(path) {
+	case ".json":
+		return MinifyJSON(input)
+	case ".yaml", ".yml":
+		return MinifyYAML(input)
+	default:
+		return "", fmt.Errorf("unsupported schema extension %q", filepath.Ext(path))
+	}
 }

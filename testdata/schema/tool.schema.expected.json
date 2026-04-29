@@ -1,0 +1,1 @@
+{"properties":{"mode":{"enum":["safe","fast"],"type":"string"}},"required":["mode"],"type":"object"}

@@ -85,3 +85,47 @@ func TestValidateAllowsTrailingJSONFlag(t *testing.T) {
 		t.Fatalf("expected json command output, got %q", stdout.String())
 	}
 }
+
+func TestOptimizeMarkdownAllowsTrailingJSONFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "guide.md")
+	if err := os.WriteFile(path, []byte("# Guide\n\n\n* first item\n"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"optimize-md", path, "--json"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"optimize-md\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}
+
+func TestMinifySchemaAllowsTrailingJSONFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tool.schema.json")
+	if err := os.WriteFile(path, []byte("{\"description\":\"verbose\",\"type\":\"object\"}\n"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"minify-schema", path, "--json"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"minify-schema\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}
