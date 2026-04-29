@@ -1,0 +1,13 @@
+[
+  {
+    "role": "user",
+    "content": "Show me the current test failures.",
+    "timestamp": "2026-04-29T10:00:00Z"
+  },
+  {
+    "role": "assistant",
+    "toolName": "bash",
+    "content": "FAIL\\nFAIL\\nFAIL\\nFAIL\\nFAIL",
+    "timestamp": "2026-04-29T10:00:10Z"
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "description": "Configuration for the ma command",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "description": "Execution mode",
+      "enum": ["safe", "fast"],
+      "default": "safe",
+      "examples": ["safe"]
+    }
+  },
+  "required": ["mode"]
+}
