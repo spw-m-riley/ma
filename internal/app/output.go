@@ -20,6 +20,11 @@ func WriteResult(w io.Writer, result Result, jsonOutput bool) error {
 		return encoder.Encode(result)
 	}
 
+	if result.Output != "" {
+		_, err := io.WriteString(w, result.Output)
+		return err
+	}
+
 	_, err := fmt.Fprintf(w, "%s changed=%t\n", result.Command, result.Changed)
 	return err
 }

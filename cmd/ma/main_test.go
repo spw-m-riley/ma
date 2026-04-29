@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -10,10 +12,11 @@ func TestAppHelp(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
-	application := newApp(&stdout, &stderr)
-	exitCode := application.Run([]string{"--help"})
-	if exitCode != 0 {
-		t.Fatalf("expected zero exit code, got %d", exitCode)
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"--help"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 
 	help := stdout.String()
@@ -30,5 +33,55 @@ func TestAppHelp(t *testing.T) {
 		if !strings.Contains(help, name) {
 			t.Fatalf("expected help output to include command %q, got %q", name, help)
 		}
+	}
+}
+
+func TestCompressAllowsTrailingJSONFlag(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "notes.md")
+	if err := os.WriteFile(path, []byte("Please make sure to utilize concise wording.\n"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"compress", path, "--json"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"compress\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}
+
+func TestValidateAllowsTrailingJSONFlag(t *testing.T) {
+	dir := t.TempDir()
+	originalPath := filepath.Join(dir, "original.md")
+	candidatePath := filepath.Join(dir, "candidate.md")
+	content := "# Heading\n\nBody.\n"
+
+	if err := os.WriteFile(originalPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write original: %v", err)
+	}
+	if err := os.WriteFile(candidatePath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write candidate: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"validate", originalPath, candidatePath, "--json"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"validate\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
 	}
 }

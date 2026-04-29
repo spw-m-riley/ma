@@ -1,42 +1,98 @@
 package main
 
 import (
-	"errors"
+	"fmt"
 	"io"
 	"os"
 
+	"github.com/spf13/cobra"
 	"github.com/spw-m-riley/ma/internal/app"
+	"github.com/spw-m-riley/ma/internal/prose"
+	validatecmd "github.com/spw-m-riley/ma/internal/validate"
 )
 
-var errNotImplemented = errors.New("not implemented")
+func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
+	var jsonOutput bool
 
-type placeholderCommand struct {
-	name string
-}
+	root := &cobra.Command{
+		Use:           "ma",
+		Short:         "Deterministic context-reduction tooling",
+		SilenceUsage:  true,
+		SilenceErrors: true,
+	}
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.PersistentFlags().BoolVar(&jsonOutput, "json", false, "emit JSON output")
 
-func (c placeholderCommand) Name() string {
-	return c.name
-}
-
-func (c placeholderCommand) Run(_ []string) (app.Result, error) {
-	return app.Result{Command: c.name}, errNotImplemented
-}
-
-func newApp(stdout io.Writer, stderr io.Writer) *app.App {
-	return app.New(
-		stdout,
-		stderr,
-		placeholderCommand{name: "compress"},
-		placeholderCommand{name: "validate"},
-		placeholderCommand{name: "optimize-md"},
-		placeholderCommand{name: "minify-schema"},
-		placeholderCommand{name: "skeleton"},
-		placeholderCommand{name: "trim-imports"},
-		placeholderCommand{name: "dedup"},
-		placeholderCommand{name: "compact-history"},
+	root.AddCommand(
+		newCompressCommand(stdout, &jsonOutput),
+		newValidateCommand(stdout, &jsonOutput),
+		notImplementedCommand("optimize-md"),
+		notImplementedCommand("minify-schema"),
+		notImplementedCommand("skeleton"),
+		notImplementedCommand("trim-imports"),
+		notImplementedCommand("dedup"),
+		notImplementedCommand("compact-history"),
 	)
+
+	return root
+}
+
+func newCompressCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	var write bool
+
+	command := &cobra.Command{
+		Use:   "compress <file>",
+		Short: "Compress prose deterministically",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			runArgs := []string{args[0]}
+			if write {
+				runArgs = append([]string{"--write"}, runArgs...)
+			}
+
+			result, err := prose.NewCommand().Run(runArgs)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+	command.Flags().BoolVar(&write, "write", false, "write compressed output back to file")
+
+	return command
+}
+
+func newValidateCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "validate <original> <candidate>",
+		Short: "Validate preserved structure between two files",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, args []string) error {
+			result, err := validatecmd.NewCommand().Run(args)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+
+	return command
+}
+
+func notImplementedCommand(name string) *cobra.Command {
+	return &cobra.Command{
+		Use:   name,
+		Short: "Not implemented yet",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return fmt.Errorf("%s not implemented yet", name)
+		},
+	}
 }
 
 func main() {
-	os.Exit(newApp(os.Stdout, os.Stderr).Run(os.Args[1:]))
+	if err := newRootCommand(os.Stdout, os.Stderr).Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

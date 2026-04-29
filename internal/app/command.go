@@ -43,7 +43,13 @@ func (a *App) Run(args []string) int {
 		return 2
 	}
 
-	if _, err := command.Run(args[1:]); err != nil {
+	result, err := command.Run(args[1:])
+	if err != nil {
+		fmt.Fprintf(a.stderr, "%v\n", err)
+		return 1
+	}
+
+	if err := WriteResult(a.stdout, result, hasJSONFlag(args[1:])); err != nil {
 		fmt.Fprintf(a.stderr, "%v\n", err)
 		return 1
 	}
@@ -62,4 +68,13 @@ func (a *App) renderHelp() {
 	for _, name := range names {
 		fmt.Fprintf(a.stdout, "  %s\n", name)
 	}
+}
+
+func hasJSONFlag(args []string) bool {
+	for _, arg := range args {
+		if arg == "--json" {
+			return true
+		}
+	}
+	return false
 }

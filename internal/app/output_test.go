@@ -32,3 +32,20 @@ func TestWriteResultJSON(t *testing.T) {
 		t.Fatalf("unexpected json output\nwant: %q\ngot:  %q", want, got)
 	}
 }
+
+func TestWriteResultHumanUsesOutputBodyWhenPresent(t *testing.T) {
+	var out bytes.Buffer
+
+	result := Result{
+		Command: "compress",
+		Output:  "compressed body\n",
+	}
+
+	if err := WriteResult(&out, result, false); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if got := out.String(); got != "compressed body\n" {
+		t.Fatalf("unexpected human output %q", got)
+	}
+}

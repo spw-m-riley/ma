@@ -15,7 +15,7 @@ func (c stubCommand) Name() string {
 }
 
 func (c stubCommand) Run(_ []string) (Result, error) {
-	return Result{}, nil
+	return Result{Command: c.name}, nil
 }
 
 func TestAppHelpListsCommands(t *testing.T) {
@@ -40,5 +40,25 @@ func TestAppHelpListsCommands(t *testing.T) {
 		if !strings.Contains(help, name) {
 			t.Fatalf("expected help output to include command %q, got %q", name, help)
 		}
+	}
+}
+
+func TestAppRunWritesCommandResult(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	application := New(
+		&stdout,
+		&stderr,
+		stubCommand{name: "compress"},
+	)
+
+	exitCode := application.Run([]string{"compress"})
+	if exitCode != 0 {
+		t.Fatalf("expected zero exit code, got %d", exitCode)
+	}
+
+	if !strings.Contains(stdout.String(), "compress changed=false") {
+		t.Fatalf("expected command output to be rendered, got %q", stdout.String())
 	}
 }
