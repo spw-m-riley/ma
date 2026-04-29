@@ -161,3 +161,24 @@ func TestTrimImportsAllowsTrailingJSONFlag(t *testing.T) {
 		t.Fatalf("expected json command output, got %q", stdout.String())
 	}
 }
+
+func TestDedupAllowsTrailingJSONFlag(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{
+		"dedup",
+		filepath.Join("..", "..", "testdata", "dedup", "rules-a.md"),
+		filepath.Join("..", "..", "testdata", "dedup", "rules-b.md"),
+		"--json",
+	})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"dedup\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}

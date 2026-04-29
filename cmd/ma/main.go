@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spw-m-riley/ma/internal/app"
 	codectxcmd "github.com/spw-m-riley/ma/internal/codectx"
+	dedupcmd "github.com/spw-m-riley/ma/internal/dedup"
 	markdowncmd "github.com/spw-m-riley/ma/internal/markdown"
 	"github.com/spw-m-riley/ma/internal/prose"
 	schemacmd "github.com/spw-m-riley/ma/internal/schema"
@@ -34,7 +35,7 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 		newMinifySchemaCommand(stdout, &jsonOutput),
 		newSkeletonCommand(stdout, &jsonOutput),
 		newTrimImportsCommand(stdout, &jsonOutput),
-		notImplementedCommand("dedup"),
+		newDedupCommand(stdout, &jsonOutput),
 		notImplementedCommand("compact-history"),
 	)
 
@@ -157,6 +158,23 @@ func newTrimImportsCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			result, err := codectxcmd.NewTrimImportsCommand().Run(args)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+
+	return command
+}
+
+func newDedupCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "dedup <path...>",
+		Short: "Report exact and near-duplicate instruction text",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			result, err := dedupcmd.NewCommand().Run(args)
 			if err != nil {
 				return err
 			}
