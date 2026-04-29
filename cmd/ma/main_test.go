@@ -129,3 +129,35 @@ func TestMinifySchemaAllowsTrailingJSONFlag(t *testing.T) {
 		t.Fatalf("expected json command output, got %q", stdout.String())
 	}
 }
+
+func TestSkeletonAllowsTrailingJSONFlag(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"skeleton", filepath.Join("..", "..", "testdata", "code", "sample.go"), "--json"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"skeleton\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}
+
+func TestTrimImportsAllowsTrailingJSONFlag(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"trim-imports", filepath.Join("..", "..", "testdata", "code", "sample.ts"), "--json"})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	if !strings.Contains(stdout.String(), "\"command\":\"trim-imports\"") {
+		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}

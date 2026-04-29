@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spw-m-riley/ma/internal/app"
+	codectxcmd "github.com/spw-m-riley/ma/internal/codectx"
 	markdowncmd "github.com/spw-m-riley/ma/internal/markdown"
 	"github.com/spw-m-riley/ma/internal/prose"
 	schemacmd "github.com/spw-m-riley/ma/internal/schema"
@@ -31,8 +32,8 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 		newValidateCommand(stdout, &jsonOutput),
 		newOptimizeMarkdownCommand(stdout, &jsonOutput),
 		newMinifySchemaCommand(stdout, &jsonOutput),
-		notImplementedCommand("skeleton"),
-		notImplementedCommand("trim-imports"),
+		newSkeletonCommand(stdout, &jsonOutput),
+		newTrimImportsCommand(stdout, &jsonOutput),
 		notImplementedCommand("dedup"),
 		notImplementedCommand("compact-history"),
 	)
@@ -128,6 +129,40 @@ func newMinifySchemaCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		},
 	}
 	command.Flags().BoolVar(&write, "write", false, "write minified schema back to file")
+
+	return command
+}
+
+func newSkeletonCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "skeleton <file>",
+		Short: "Reduce source to declarations and signatures",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			result, err := codectxcmd.NewSkeletonCommand().Run(args)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+
+	return command
+}
+
+func newTrimImportsCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "trim-imports <file>",
+		Short: "Summarize import blocks for code context",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			result, err := codectxcmd.NewTrimImportsCommand().Run(args)
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
 
 	return command
 }
