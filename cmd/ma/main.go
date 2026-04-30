@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spw-m-riley/ma/internal/app"
 	codectxcmd "github.com/spw-m-riley/ma/internal/codectx"
+	"github.com/spw-m-riley/ma/internal/dashboard"
 	dedupcmd "github.com/spw-m-riley/ma/internal/dedup"
 	historycmd "github.com/spw-m-riley/ma/internal/history"
 	markdowncmd "github.com/spw-m-riley/ma/internal/markdown"
@@ -38,6 +39,7 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 		newTrimImportsCommand(stdout, &jsonOutput),
 		newDedupCommand(stdout, &jsonOutput),
 		newCompactHistoryCommand(stdout, &jsonOutput),
+		newDashboardCommand(stdout),
 	)
 
 	return root
@@ -51,12 +53,13 @@ func newCompressCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		Short: "Compress prose deterministically",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			runArgs := []string{args[0]}
-			if write {
-				runArgs = append([]string{"--write"}, runArgs...)
-			}
-
-			result, err := prose.NewCommand().Run(runArgs)
+			result, err := dashboard.ObserveRun("compress", args, func() (app.Result, error) {
+				runArgs := []string{args[0]}
+				if write {
+					runArgs = append([]string{"--write"}, runArgs...)
+				}
+				return prose.NewCommand().Run(runArgs)
+			})
 			if err != nil {
 				return err
 			}
@@ -74,7 +77,9 @@ func newValidateCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		Short: "Validate preserved structure between two files",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			result, err := validatecmd.NewCommand().Run(args)
+			result, err := dashboard.ObserveRun("validate", args, func() (app.Result, error) {
+				return validatecmd.NewCommand().Run(args)
+			})
 			if err != nil {
 				return err
 			}
@@ -93,12 +98,13 @@ func newOptimizeMarkdownCommand(stdout io.Writer, jsonOutput *bool) *cobra.Comma
 		Short: "Optimize markdown structure deterministically",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			runArgs := []string{args[0]}
-			if write {
-				runArgs = append([]string{"--write"}, runArgs...)
-			}
-
-			result, err := markdowncmd.NewCommand().Run(runArgs)
+			result, err := dashboard.ObserveRun("optimize-md", args, func() (app.Result, error) {
+				runArgs := []string{args[0]}
+				if write {
+					runArgs = append([]string{"--write"}, runArgs...)
+				}
+				return markdowncmd.NewCommand().Run(runArgs)
+			})
 			if err != nil {
 				return err
 			}
@@ -118,12 +124,13 @@ func newMinifySchemaCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		Short: "Minify JSON or YAML schema files",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			runArgs := []string{args[0]}
-			if write {
-				runArgs = append([]string{"--write"}, runArgs...)
-			}
-
-			result, err := schemacmd.NewCommand().Run(runArgs)
+			result, err := dashboard.ObserveRun("minify-schema", args, func() (app.Result, error) {
+				runArgs := []string{args[0]}
+				if write {
+					runArgs = append([]string{"--write"}, runArgs...)
+				}
+				return schemacmd.NewCommand().Run(runArgs)
+			})
 			if err != nil {
 				return err
 			}
@@ -141,7 +148,9 @@ func newSkeletonCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		Short: "Reduce source to declarations and signatures",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			result, err := codectxcmd.NewSkeletonCommand().Run(args)
+			result, err := dashboard.ObserveRun("skeleton", args, func() (app.Result, error) {
+				return codectxcmd.NewSkeletonCommand().Run(args)
+			})
 			if err != nil {
 				return err
 			}
@@ -158,7 +167,9 @@ func newTrimImportsCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		Short: "Summarize import blocks for code context",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			result, err := codectxcmd.NewTrimImportsCommand().Run(args)
+			result, err := dashboard.ObserveRun("trim-imports", args, func() (app.Result, error) {
+				return codectxcmd.NewTrimImportsCommand().Run(args)
+			})
 			if err != nil {
 				return err
 			}
@@ -175,7 +186,9 @@ func newDedupCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
 		Short: "Report exact and near-duplicate instruction text",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			result, err := dedupcmd.NewCommand().Run(args)
+			result, err := dashboard.ObserveRun("dedup", args, func() (app.Result, error) {
+				return dedupcmd.NewCommand().Run(args)
+			})
 			if err != nil {
 				return err
 			}
@@ -194,12 +207,13 @@ func newCompactHistoryCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command
 		Short: "Compact transcript history from an explicit JSON contract",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			runArgs := []string{args[0]}
-			if write {
-				runArgs = append([]string{"--write"}, runArgs...)
-			}
-
-			result, err := historycmd.NewCommand().Run(runArgs)
+			result, err := dashboard.ObserveRun("compact-history", args, func() (app.Result, error) {
+				runArgs := []string{args[0]}
+				if write {
+					runArgs = append([]string{"--write"}, runArgs...)
+				}
+				return historycmd.NewCommand().Run(runArgs)
+			})
 			if err != nil {
 				return err
 			}
@@ -207,6 +221,18 @@ func newCompactHistoryCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command
 		},
 	}
 	command.Flags().BoolVar(&write, "write", false, "write compacted transcript back to file")
+
+	return command
+}
+
+func newDashboardCommand(stdout io.Writer) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "dashboard",
+		Short: "Serve the local dashboard on loopback",
+		RunE: func(_ *cobra.Command, args []string) error {
+			return dashboard.NewCommand(stdout).Run(args)
+		},
+	}
 
 	return command
 }

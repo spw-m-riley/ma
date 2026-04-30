@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spw-m-riley/ma/internal/dashboard"
 )
 
 func TestAppHelp(t *testing.T) {
@@ -29,6 +31,7 @@ func TestAppHelp(t *testing.T) {
 		"trim-imports",
 		"dedup",
 		"compact-history",
+		"dashboard",
 	} {
 		if !strings.Contains(help, name) {
 			t.Fatalf("expected help output to include command %q, got %q", name, help)
@@ -200,5 +203,45 @@ func TestCompactHistoryAllowsTrailingJSONFlag(t *testing.T) {
 
 	if !strings.Contains(stdout.String(), "\"command\":\"compact-history\"") {
 		t.Fatalf("expected json command output, got %q", stdout.String())
+	}
+}
+
+func TestCommandInvocationRecordsDashboardHistory(t *testing.T) {
+	stateDir := t.TempDir()
+	t.Setenv("MA_DASHBOARD_STATE_DIR", stateDir)
+
+	path := filepath.Join(stateDir, "notes.md")
+	if err := os.WriteFile(path, []byte("Please make sure to utilize concise wording.\n"), 0o644); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	command := newRootCommand(&stdout, &stderr)
+	command.SetArgs([]string{"compress", path})
+
+	if err := command.Execute(); err != nil {
+		t.Fatalf("expected no error, got %v (stderr=%q)", err, stderr.String())
+	}
+
+	store, err := dashboard.OpenStore(stateDir)
+	if err != nil {
+		t.Fatalf("open dashboard store: %v", err)
+	}
+
+	summary, err := store.Summary()
+	if err != nil {
+		t.Fatalf("read dashboard summary: %v", err)
+	}
+
+	if summary.TotalRuns != 1 {
+		t.Fatalf("expected 1 recorded run, got %d", summary.TotalRuns)
+	}
+	if summary.SuccessfulRuns != 1 {
+		t.Fatalf("expected 1 successful run, got %d", summary.SuccessfulRuns)
+	}
+	if got := summary.CommandUsage["compress"]; got != 1 {
+		t.Fatalf("expected compress usage count 1, got %d", got)
 	}
 }
