@@ -57,12 +57,88 @@ func TestServerRendersDashboardSummary(t *testing.T) {
 	for _, want := range []string{
 		"ma dashboard",
 		"Total runs",
-		"1",
 		"48 bytes",
-		"compress",
+		"Recent runs",
+		"View stats",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("expected dashboard body to contain %q, got %q", want, body)
+		}
+	}
+}
+
+func TestServerRendersActivityFirstOverviewLayout(t *testing.T) {
+	store, err := OpenStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+
+	handler := NewServer(store).Handler()
+	startedAt := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	finishedAt := startedAt.Add(4 * time.Second)
+
+	if err := store.RecordFinished(FinishedRun{
+		ID:         "run-success",
+		Command:    "compress",
+		StartedAt:  startedAt,
+		FinishedAt: startedAt.Add(2 * time.Second),
+		Success:    true,
+		Changed:    true,
+		Result: app.Result{
+			Command: "compress",
+			Changed: true,
+			Stats: app.Stats{
+				InputBytes:         120,
+				OutputBytes:        72,
+				InputWords:         20,
+				OutputWords:        12,
+				InputApproxTokens:  28,
+				OutputApproxTokens: 17,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("record successful run: %v", err)
+	}
+
+	postDashboardEvent(t, handler, RunEvent{
+		Kind:          eventKindStarted,
+		ID:            "run-active",
+		Command:       "validate",
+		StartedAt:     startedAt.Add(10 * time.Second),
+		ResultSummary: "Comparing candidate against baseline",
+	})
+	postDashboardEvent(t, handler, RunEvent{
+		Kind:          eventKindFailed,
+		ID:            "run-failed",
+		Command:       "dedup",
+		StartedAt:     startedAt.Add(20 * time.Second),
+		FinishedAt:    &finishedAt,
+		Error:         "duplicate scan exceeded budget",
+		ResultSummary: "duplicate scan exceeded budget",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	body := recorder.Body.String()
+	for _, want := range []string{
+		`id="activity-layout"`,
+		`id="savings-band"`,
+		`id="recent-runs-list"`,
+		`recent-runs-head`,
+		`status-pill status-failed`,
+		`status-pill status-started`,
+		`2026-04-30 12:00:04 UTC`,
+		`View stats`,
+		`duplicate scan exceeded budget`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected overview body to contain %q, got %q", want, body)
 		}
 	}
 }
@@ -261,8 +337,9 @@ func TestServerRendersLiveOverviewSections(t *testing.T) {
 
 	body := recorder.Body.String()
 	for _, want := range []string{
-		"id=\"overview-summary\"",
-		"id=\"command-usage\"",
+		"id=\"activity-layout\"",
+		"id=\"savings-band\"",
+		"id=\"recent-runs-list\"",
 		"id=\"running-now\"",
 		"Running now",
 		"fetch('/api/overview')",
@@ -320,6 +397,50 @@ func TestServerShowsRecentRunDetailsWithoutDurableBodies(t *testing.T) {
 	historyBytes, err := os.ReadFile(filepath.Join(root, historyFileName))
 	if err == nil && strings.Contains(string(historyBytes), "before") {
 		t.Fatalf("expected recent input body to stay out of durable history, got %q", string(historyBytes))
+	}
+}
+
+func TestServerRunDetailRendersIntentionalPanelStates(t *testing.T) {
+	store, err := OpenStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+
+	handler := NewServer(store).Handler()
+	startedAt := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	finishedAt := startedAt.Add(2 * time.Second)
+
+	postDashboardEvent(t, handler, RunEvent{
+		Kind:          eventKindFailed,
+		ID:            "run-1",
+		Command:       "compress",
+		StartedAt:     startedAt,
+		FinishedAt:    &finishedAt,
+		Error:         "candidate diverged",
+		PayloadStatus: payloadStatusRedacted,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/runs/run-1", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	body := recorder.Body.String()
+	for _, want := range []string{
+		"comparison-grid",
+		"Payload: Withheld",
+		"state-redacted",
+		"state-unavailable",
+		"This run involved a sensitive or protected path",
+		"This run ended with an error before output text was captured.",
+		"@media (min-width: 72rem)",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected detail body to contain %q, got %q", want, body)
+		}
 	}
 }
 
@@ -461,6 +582,82 @@ func TestServerRendersDedicatedStatsView(t *testing.T) {
 		"compress",
 		"validate",
 		"1 successful / 1 failed",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("expected stats body to contain %q, got %q", want, body)
+		}
+	}
+}
+
+func TestServerRendersStatsAnalysisPanels(t *testing.T) {
+	store, err := OpenStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+
+	firstStartedAt := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+	secondStartedAt := time.Date(2026, 4, 30, 13, 0, 0, 0, time.UTC)
+
+	if err := store.RecordFinished(FinishedRun{
+		ID:         "run-1",
+		Command:    "compress",
+		StartedAt:  firstStartedAt,
+		FinishedAt: firstStartedAt.Add(2 * time.Second),
+		Success:    true,
+		Changed:    true,
+		Result: app.Result{
+			Command: "compress",
+			Changed: true,
+			Stats: app.Stats{
+				InputBytes:         120,
+				OutputBytes:        72,
+				InputWords:         20,
+				OutputWords:        12,
+				InputApproxTokens:  28,
+				OutputApproxTokens: 17,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("record first run: %v", err)
+	}
+
+	if err := store.RecordFinished(FinishedRun{
+		ID:         "run-2",
+		Command:    "validate",
+		StartedAt:  secondStartedAt,
+		FinishedAt: secondStartedAt.Add(2 * time.Second),
+		Success:    false,
+		Error:      "candidate diverged",
+		Result: app.Result{
+			Command: "validate",
+			Stats: app.Stats{
+				InputBytes:         90,
+				OutputBytes:        90,
+				InputWords:         14,
+				OutputWords:        14,
+				InputApproxTokens:  20,
+				OutputApproxTokens: 20,
+			},
+		},
+	}); err != nil {
+		t.Fatalf("record second run: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/stats", nil)
+	recorder := httptest.NewRecorder()
+	NewServer(store).Handler().ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	body := recorder.Body.String()
+	for _, want := range []string{
+		"Command rankings",
+		"Outcome context",
+		"success-meter",
+		"steady savings",
+		"Most active command",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("expected stats body to contain %q, got %q", want, body)
