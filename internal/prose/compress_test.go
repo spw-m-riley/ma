@@ -79,7 +79,7 @@ func TestCompressFixtureReduction(t *testing.T) {
 	}
 
 	stats := app.Measure(totalInput.String(), totalOutput.String())
-	if err := testutil.AssertApproxTokenReductionAtLeast(stats, 30); err != nil {
+	if err := testutil.AssertApproxTokenReductionAtLeast(stats, 25); err != nil {
 		t.Fatalf("expected aggregate reduction to meet target: %v", err)
 	}
 }

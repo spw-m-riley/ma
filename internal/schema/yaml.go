@@ -1,8 +1,11 @@
 package schema
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 var removableYAMLKeys = map[string]struct{}{
@@ -12,82 +15,107 @@ var removableYAMLKeys = map[string]struct{}{
 }
 
 func MinifyYAML(input string) (string, error) {
-	lines := strings.Split(input, "\n")
-	var out []string
-	skipIndent := -1
-
-	for _, line := range lines {
-		if err := validateSupportedYAMLLine(line); err != nil {
-			return "", err
-		}
-
-		trimmed := strings.TrimSpace(line)
-		indent := leadingSpaces(line)
-
-		if skipIndent >= 0 {
-			if trimmed == "" || indent > skipIndent {
-				continue
-			}
-			skipIndent = -1
-		}
-
-		if trimmed == "" {
-			out = append(out, line)
-			continue
-		}
-
-		if key, ok := yamlKey(trimmed); ok {
-			if _, remove := removableYAMLKeys[key]; remove {
-				skipIndent = indent
-				continue
-			}
-		}
-
-		out = append(out, line)
+	if err := rejectTabs(input); err != nil {
+		return "", err
 	}
 
-	return strings.TrimSpace(strings.Join(out, "\n")), nil
+	var doc yaml.Node
+	if err := yaml.Unmarshal([]byte(input), &doc); err != nil {
+		return "", err
+	}
+	if err := validateNode(&doc); err != nil {
+		return "", err
+	}
+
+	pruneKeys(&doc, removableYAMLKeys)
+	if isEmptyYAMLDocument(&doc) {
+		return "", nil
+	}
+
+	var out bytes.Buffer
+	encoder := yaml.NewEncoder(&out)
+	encoder.SetIndent(2)
+	if err := encoder.Encode(&doc); err != nil {
+		return "", err
+	}
+	if err := encoder.Close(); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out.String()), nil
 }
 
-func validateSupportedYAMLLine(line string) error {
-	trimmed := strings.TrimSpace(line)
-	if strings.Contains(line, "\t") {
+func rejectTabs(input string) error {
+	for _, line := range strings.Split(input, "\n") {
+		if !strings.ContainsRune(line, '\t') {
+			continue
+		}
 		return fmt.Errorf("unsupported yaml feature: tabs")
 	}
-	
-	// Reject merge key syntax (<<:)
-	if strings.Contains(trimmed, "<<:") {
-		return fmt.Errorf("unsupported yaml feature: merge keys")
-	}
-	
-	// Reject YAML anchors (& followed by identifier at start of value)
-	if strings.Contains(trimmed, ": &") || strings.HasPrefix(trimmed, "&") {
-		return fmt.Errorf("unsupported yaml feature: anchors")
-	}
-	
-	// Reject YAML aliases (* followed by identifier)
-	if strings.HasPrefix(trimmed, "*") || strings.Contains(trimmed, ": *") {
-		return fmt.Errorf("unsupported yaml feature: aliases")
-	}
-	
 	return nil
 }
 
-func yamlKey(line string) (string, bool) {
-	if strings.HasPrefix(line, "- ") {
-		return "", false
+func validateNode(node *yaml.Node) error {
+	if node.Kind == yaml.AliasNode {
+		return fmt.Errorf("unsupported yaml feature: aliases")
 	}
-	index := strings.Index(line, ":")
-	if index < 0 {
-		return "", false
+	if node.Anchor != "" {
+		return fmt.Errorf("unsupported yaml feature: anchors")
 	}
-	return strings.TrimSpace(line[:index]), true
+
+	if node.Kind == yaml.MappingNode {
+		for i := 0; i < len(node.Content); i += 2 {
+			if node.Content[i].Value == "<<" {
+				return fmt.Errorf("unsupported yaml feature: merge keys")
+			}
+		}
+	}
+
+	for _, child := range node.Content {
+		if err := validateNode(child); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func leadingSpaces(line string) int {
-	count := 0
-	for count < len(line) && line[count] == ' ' {
-		count++
+func pruneKeys(node *yaml.Node, keys map[string]struct{}) {
+	if node.Kind == yaml.DocumentNode {
+		for _, child := range node.Content {
+			pruneKeys(child, keys)
+		}
+		return
 	}
-	return count
+
+	if node.Kind != yaml.MappingNode {
+		for _, child := range node.Content {
+			pruneKeys(child, keys)
+		}
+		return
+	}
+
+	filtered := make([]*yaml.Node, 0, len(node.Content))
+	for i := 0; i < len(node.Content); i += 2 {
+		key := node.Content[i]
+		value := node.Content[i+1]
+		if _, remove := keys[key.Value]; remove {
+			continue
+		}
+		pruneKeys(value, keys)
+		filtered = append(filtered, key, value)
+	}
+	node.Content = filtered
+}
+
+func isEmptyYAMLDocument(node *yaml.Node) bool {
+	switch node.Kind {
+	case 0:
+		return true
+	case yaml.DocumentNode:
+		return len(node.Content) == 0 || (len(node.Content) == 1 && isEmptyYAMLDocument(node.Content[0]))
+	case yaml.MappingNode, yaml.SequenceNode:
+		return len(node.Content) == 0
+	default:
+		return false
+	}
 }

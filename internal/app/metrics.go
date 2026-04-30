@@ -1,6 +1,12 @@
 package app
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/tiktoken-go/tokenizer"
+)
+
+var defaultCodec = mustDefaultCodec()
 
 type Stats struct {
 	InputBytes         int `json:"inputBytes"`
@@ -17,16 +23,20 @@ func Measure(input string, output string) Stats {
 		OutputBytes:        len(output),
 		InputWords:         len(strings.Fields(input)),
 		OutputWords:        len(strings.Fields(output)),
-		InputApproxTokens:  approxTokens(input),
-		OutputApproxTokens: approxTokens(output),
+		InputApproxTokens:  countTokens(input),
+		OutputApproxTokens: countTokens(output),
 	}
 }
 
-func approxTokens(input string) int {
-	chars := len(input) / 4
-	words := (len(strings.Fields(input)) * 4) / 3
-	if chars > words {
-		return chars
+func mustDefaultCodec() tokenizer.Codec {
+	codec, err := tokenizer.Get(tokenizer.Cl100kBase)
+	if err != nil {
+		panic("initialize cl100k_base tokenizer: " + err.Error())
 	}
-	return words
+	return codec
+}
+
+func countTokens(input string) int {
+	ids, _, _ := defaultCodec.Encode(input)
+	return len(ids)
 }

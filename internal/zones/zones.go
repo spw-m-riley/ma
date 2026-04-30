@@ -2,7 +2,12 @@ package zones
 
 import (
 	"regexp"
+	"sort"
 	"strings"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 )
 
 type Kind string
@@ -26,64 +31,227 @@ var urlPattern = regexp.MustCompile(`https?://[^\s)]+`)
 var pathPattern = regexp.MustCompile(`(^|[\s(])((?:/|\./|\../)[^\s)` + "`" + `]+)`)
 
 func Split(input string) []Zone {
-	lines := strings.SplitAfter(input, "\n")
-	if len(lines) == 1 && lines[0] == "" {
+	if input == "" {
 		return nil
 	}
 
+	source := []byte(input)
+	special := collectSpecialZones(source)
 	var zones []Zone
-	var prose strings.Builder
-	var fence strings.Builder
-	inFence := false
-
-	flushProse := func() {
-		if prose.Len() == 0 {
-			return
+	cursor := 0
+	for _, region := range special {
+		if region.start > cursor {
+			zones = append(zones, splitProtectedText(input[cursor:region.start])...)
 		}
-		zones = append(zones, splitProtectedText(prose.String())...)
-		prose.Reset()
+		zones = append(zones, Zone{Kind: region.kind, Text: input[region.start:region.end]})
+		cursor = region.end
 	}
-
-	flushFence := func() {
-		if fence.Len() == 0 {
-			return
-		}
-		zones = append(zones, Zone{Kind: CodeFence, Text: fence.String()})
-		fence.Reset()
+	if cursor < len(input) {
+		zones = append(zones, splitProtectedText(input[cursor:])...)
 	}
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if inFence {
-			fence.WriteString(line)
-			if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-				inFence = false
-				flushFence()
-			}
-			continue
-		}
-
-		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-			flushProse()
-			inFence = true
-			fence.WriteString(line)
-			continue
-		}
-
-		if strings.HasPrefix(trimmed, "#") {
-			flushProse()
-			zones = append(zones, Zone{Kind: Heading, Text: line})
-			continue
-		}
-
-		prose.WriteString(line)
-	}
-
-	flushProse()
-	flushFence()
 
 	return zones
+}
+
+type sourceRegion struct {
+	start int
+	end   int
+	kind  Kind
+}
+
+func collectSpecialZones(source []byte) []sourceRegion {
+	doc := goldmark.New().Parser().Parse(text.NewReader(source))
+	regions := make([]sourceRegion, 0)
+
+	_ = ast.Walk(doc, func(node ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		switch node.Kind() {
+		case ast.KindHeading:
+			start, end := nodeSourceRange(node, source)
+			if start >= end {
+				return ast.WalkContinue, nil
+			}
+			line := strings.TrimRight(string(source[start:end]), "\r\n")
+			if !strings.HasPrefix(strings.TrimSpace(line), "#") {
+				return ast.WalkContinue, nil
+			}
+			regions = append(regions, sourceRegion{start: start, end: end, kind: Heading})
+		case ast.KindFencedCodeBlock:
+			start, end := fencedBlockSourceRange(node, source)
+			if start >= end {
+				return ast.WalkContinue, nil
+			}
+			regions = append(regions, sourceRegion{start: start, end: end, kind: CodeFence})
+		}
+
+		return ast.WalkContinue, nil
+	})
+
+	sort.Slice(regions, func(i, j int) bool {
+		if regions[i].start == regions[j].start {
+			return regions[i].end < regions[j].end
+		}
+		return regions[i].start < regions[j].start
+	})
+
+	return regions
+}
+
+func nodeSourceRange(node ast.Node, source []byte) (int, int) {
+	start, end := nodeByteRange(node, source)
+	if start >= end {
+		return 0, 0
+	}
+	for start > 0 && source[start-1] != '\n' {
+		start--
+	}
+	for end < len(source) && source[end-1] != '\n' {
+		end++
+	}
+	return start, end
+}
+
+func nodeByteRange(node ast.Node, source []byte) (int, int) {
+	start := len(source)
+	end := 0
+
+	_ = ast.Walk(node, func(child ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+
+		if child.Type() != ast.TypeInline {
+			lines := child.Lines()
+			for i := 0; i < lines.Len(); i++ {
+				segment := lines.At(i)
+				if segment.Start < start {
+					start = segment.Start
+				}
+				if segment.Stop > end {
+					end = segment.Stop
+				}
+			}
+		}
+
+		if textNode, ok := child.(*ast.Text); ok {
+			if textNode.Segment.Start < start {
+				start = textNode.Segment.Start
+			}
+			if textNode.Segment.Stop > end {
+				end = textNode.Segment.Stop
+			}
+		}
+
+		return ast.WalkContinue, nil
+	})
+
+	if pos := node.Pos(); pos >= 0 && pos < start {
+		start = pos
+	}
+	if start >= end {
+		return 0, 0
+	}
+	return start, end
+}
+
+func fencedBlockSourceRange(node ast.Node, source []byte) (int, int) {
+	start := node.Pos()
+	if start < 0 || start >= len(source) {
+		return 0, 0
+	}
+	for start > 0 && source[start-1] != '\n' {
+		start--
+	}
+
+	end := findFenceBlockEnd(source, start)
+	if start >= end {
+		return 0, 0
+	}
+	return start, end
+}
+
+func findFenceBlockEnd(source []byte, start int) int {
+	lineEnd := start
+	for lineEnd < len(source) && source[lineEnd] != '\n' {
+		lineEnd++
+	}
+
+	opener := string(source[start:lineEnd])
+	fenceChar, fenceLen, ok := detectFence(opener)
+	if !ok {
+		if lineEnd < len(source) {
+			return lineEnd + 1
+		}
+		return lineEnd
+	}
+
+	cursor := lineEnd
+	if cursor < len(source) {
+		cursor++
+	}
+
+	for cursor < len(source) {
+		nextLineEnd := cursor
+		for nextLineEnd < len(source) && source[nextLineEnd] != '\n' {
+			nextLineEnd++
+		}
+
+		line := string(source[cursor:nextLineEnd])
+		if closesFence(line, fenceChar, fenceLen) {
+			if nextLineEnd < len(source) {
+				return nextLineEnd + 1
+			}
+			return nextLineEnd
+		}
+
+		if nextLineEnd == len(source) {
+			return nextLineEnd
+		}
+		cursor = nextLineEnd + 1
+	}
+
+	return len(source)
+}
+
+func detectFence(line string) (byte, int, bool) {
+	trimmed := strings.TrimSpace(line)
+	if len(trimmed) < 3 {
+		return 0, 0, false
+	}
+	if strings.HasPrefix(trimmed, "```") {
+		return '`', countFenceChars(trimmed, '`'), true
+	}
+	if strings.HasPrefix(trimmed, "~~~") {
+		return '~', countFenceChars(trimmed, '~'), true
+	}
+	return 0, 0, false
+}
+
+func closesFence(line string, fenceChar byte, fenceLen int) bool {
+	trimmed := strings.TrimSpace(line)
+	if len(trimmed) < fenceLen {
+		return false
+	}
+	for i := 0; i < fenceLen; i++ {
+		if trimmed[i] != fenceChar {
+			return false
+		}
+	}
+	return true
+}
+
+func countFenceChars(line string, fenceChar byte) int {
+	count := 0
+	for i := 0; i < len(line); i++ {
+		if line[i] != fenceChar {
+			break
+		}
+		count++
+	}
+	return count
 }
 
 func splitProtectedText(input string) []Zone {

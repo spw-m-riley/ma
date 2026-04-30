@@ -22,6 +22,8 @@
 
 All commands are deterministic and offline.
 
+JSON stats keep the existing `inputApproxTokens` and `outputApproxTokens` field names, but the values are now `cl100k_base` token counts — exact for that encoding and still approximate relative to any specific model tokenizer.
+
 ## Boundaries
 
 - `ma` does **not** proxy shell commands or reduce tool output streams. Use **RTK** for that layer.

@@ -73,3 +73,49 @@ func TestSplitSeparatesURLsAndPaths(t *testing.T) {
 		t.Fatalf("unexpected path text: %q", got[3].Text)
 	}
 }
+
+func TestSplitKeepsMismatchedFenceCloserInsideCodeFence(t *testing.T) {
+	input := "```go\nfmt.Println(\"hi\")\n~~~\nstill code\n"
+
+	got := Split(input)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 zone, got %d", len(got))
+	}
+	if got[0].Kind != CodeFence {
+		t.Fatalf("expected code fence zone, got %q", got[0].Kind)
+	}
+	if got[0].Text != input {
+		t.Fatalf("expected full input to stay inside code fence, got %q", got[0].Text)
+	}
+}
+
+func TestSplitPreservesFullCodeFenceText(t *testing.T) {
+	input := "Before\n\n```go title=demo\nfmt.Println(\"hi\")\n```\n"
+
+	got := Split(input)
+	if len(got) != 2 {
+		t.Fatalf("expected 2 zones, got %d", len(got))
+	}
+	if got[1].Kind != CodeFence {
+		t.Fatalf("expected second zone to be code fence, got %q", got[1].Kind)
+	}
+	want := "```go title=demo\nfmt.Println(\"hi\")\n```\n"
+	if got[1].Text != want {
+		t.Fatalf("expected %q, got %q", want, got[1].Text)
+	}
+}
+
+func TestSplitHandlesNestedCodeFences(t *testing.T) {
+	input := "````markdown\n```go\nfmt.Println(\"hi\")\n```\n````\n"
+
+	got := Split(input)
+	if len(got) != 1 {
+		t.Fatalf("expected 1 zone, got %d", len(got))
+	}
+	if got[0].Kind != CodeFence {
+		t.Fatalf("expected code fence zone, got %q", got[0].Kind)
+	}
+	if got[0].Text != input {
+		t.Fatalf("expected nested fence block to stay intact, got %q", got[0].Text)
+	}
+}
