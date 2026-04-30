@@ -20,8 +20,14 @@ func SkeletonFile(path string, src []byte) (string, []string, error) {
 		output, err := SkeletonGo(src)
 		return output, nil, err
 	case ".ts", ".tsx", ".js", ".jsx":
-		output := SkeletonHeuristic(string(src))
-		return output, []string{"heuristic skeleton used for non-Go source"}, nil
+		ext := filepath.Ext(path)
+		output, warnings, err := tsjsSkeleton(ext, src)
+		if err != nil {
+			heuristicOutput := SkeletonHeuristic(string(src))
+			warnings = append(warnings, "heuristic skeleton used for non-Go source")
+			return heuristicOutput, warnings, nil
+		}
+		return output, warnings, nil
 	default:
 		return "", nil, fmt.Errorf("unsupported skeleton extension %q", filepath.Ext(path))
 	}

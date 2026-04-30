@@ -14,7 +14,13 @@ var typeImportPattern = regexp.MustCompile(`^import\s+type\s+\{([^}]+)\}\s+from\
 func TrimImportsFile(path string, src []byte) (string, []string, error) {
 	switch filepath.Ext(path) {
 	case ".ts", ".tsx", ".js", ".jsx":
-		return trimJSImportBlock(string(src)), nil, nil
+		ext := filepath.Ext(path)
+		output, warnings, err := tsjsTrimImports(ext, src)
+		if err != nil {
+			heuristicOutput := trimJSImportBlock(string(src))
+			return heuristicOutput, warnings, nil
+		}
+		return output, warnings, nil
 	default:
 		return "", nil, fmt.Errorf("unsupported import trimming extension %q", filepath.Ext(path))
 	}

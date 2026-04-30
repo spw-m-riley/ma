@@ -10,7 +10,7 @@ import (
 	"github.com/spw-m-riley/ma/internal/testutil"
 )
 
-func TestTrimImports(t *testing.T) {
+func TestTrimImportsTS(t *testing.T) {
 	inputPath := filepath.Join("..", "..", "testdata", "code", "sample.ts")
 	input, err := os.ReadFile(inputPath)
 	if err != nil {

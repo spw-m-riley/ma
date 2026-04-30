@@ -15,8 +15,8 @@
 | `ma validate <original> <candidate>` | Structural preservation checks for headings, code fences, URLs, paths, and bullet drift |
 | `ma optimize-md <file>` | Markdown structure cleanup for blank lines, list markers, and tables |
 | `ma minify-schema <file>` | JSON/YAML schema minification by removing verbose metadata |
-| `ma skeleton <file>` | Code skeleton extraction for Go and heuristic signature-only reduction for TS/JS |
-| `ma trim-imports <file>` | Import-block summarization for TS/JS-style files |
+| `ma skeleton <file>` | Code skeleton extraction for Go and parser-backed TS/JS reduction, with heuristic fallback when built without CGo |
+| `ma trim-imports <file>` | Import-block summarization for TS/JS-style files, with heuristic fallback when built without CGo |
 | `ma dedup <path...>` | Exact and near-duplicate reporting across instruction-style documents |
 | `ma compact-history <transcript>` | Transcript compaction for an explicit JSON message contract |
 
@@ -45,6 +45,8 @@ Mutating commands (`compress`, `optimize-md`, `minify-schema`, `compact-history`
 ```bash
 go build ./cmd/ma
 ```
+
+When built with `CGO_ENABLED=1`, `ma skeleton` and `ma trim-imports` use tree-sitter for `.ts`, `.tsx`, `.js`, and `.jsx`. That path requires a working C toolchain. Builds with `CGO_ENABLED=0` still work, but TS/JS processing falls back to the existing heuristic reducers.
 
 ## Examples
 

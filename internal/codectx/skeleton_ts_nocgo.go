@@ -1,0 +1,9 @@
+//go:build !cgo
+
+package codectx
+
+import "fmt"
+
+func tsjsSkeleton(ext string, src []byte) (string, []string, error) {
+	return "", nil, fmt.Errorf("tree-sitter unavailable (CGo disabled)")
+}

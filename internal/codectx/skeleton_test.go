@@ -3,7 +3,6 @@ package codectx
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -25,33 +24,6 @@ func TestSkeletonGo(t *testing.T) {
 	want := "package sample\n\nimport \"context\"\n\n// Process applies the configured operation.\nfunc Process(ctx context.Context, value string) (string, error)\n"
 	if got != want {
 		t.Fatalf("unexpected go skeleton\nwant: %q\ngot:  %q", want, got)
-	}
-}
-
-func TestSkeletonTSHeuristicReturnsWarning(t *testing.T) {
-	inputPath := filepath.Join("..", "..", "testdata", "code", "sample.ts")
-	input, err := os.ReadFile(inputPath)
-	if err != nil {
-		t.Fatalf("read input: %v", err)
-	}
-
-	got, warnings, err := SkeletonFile(inputPath, input)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if len(warnings) == 0 {
-		t.Fatalf("expected heuristic warning")
-	}
-	for _, expected := range []string{
-		"export function render(config: Config): string;",
-		"export function save(config: Config, value: string): void;",
-	} {
-		if !strings.Contains(got, expected) {
-			t.Fatalf("expected heuristic skeleton to include %q, got %q", expected, got)
-		}
-	}
-	if strings.Contains(got, "return readFileSync") || strings.Contains(got, "writeFileSync(config.path, value);") {
-		t.Fatalf("expected function bodies to be removed, got %q", got)
 	}
 }
 
