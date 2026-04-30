@@ -1,5 +1,8 @@
 # ma
 
+> Ma (間, lit. 'gap, space, pause') is a Japanese concept of negative space
+[(Source)](https://en.wikipedia.org/wiki/Ma_(negative_space))
+
 `ma` is a deterministic, offline Go CLI for reducing LLM context payload size without making external API calls.
 
 ## What it covers
