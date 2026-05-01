@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/spw-m-riley/ma/compare/v1.0.1...v1.1.0) (2026-05-01)
+
+
+### Features
+
+* add go code context reduction parity ([a4fc44d](https://github.com/spw-m-riley/ma/commit/a4fc44d50762b1a57e58f7dd125f90798fed3285))
+* add local dashboard observability and CI automation ([7100c48](https://github.com/spw-m-riley/ma/commit/7100c4860f2037eb4dbd92c243e05ddda4853319))
+* **extension:** add active ma integration hooks ([d90ce69](https://github.com/spw-m-riley/ma/commit/d90ce69c13c4258c97e6b565e9ad8e1cca1ea15c))
+* **prose:** expand deterministic reduction phases ([ca293ee](https://github.com/spw-m-riley/ma/commit/ca293ee92d78f7963f323b872ec6ee9e8b17af91))
+
+
+### Bug Fixes
+
+* bump Go patch version for govulncheck ([96a78b2](https://github.com/spw-m-riley/ma/commit/96a78b2923f4ae1c792db025f29254e7dd09f5b2))
+
 ## [1.0.1](https://github.com/spw-m-riley/ma/compare/v1.0.0...v1.0.1) (2026-05-01)
 
 
