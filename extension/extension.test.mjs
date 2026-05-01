@@ -75,6 +75,20 @@ test("onPreToolUse denies full-file view reads on large files", async () => {
     assert.equal(logs.length, 1);
 });
 
+test("onPreToolUse denies full-file view reads when the runtime sends stringified toolArgs", async () => {
+    const { hooks } = makeConfig({
+        isLargeFile: () => true,
+    });
+
+    const result = await hooks.onPreToolUse({
+        toolName: "view",
+        toolArgs: JSON.stringify({ path: "/tmp/large.md" }),
+        cwd: "/tmp",
+    });
+
+    assert.equal(result.permissionDecision, "deny");
+});
+
 test("onPreToolUse passes through bounded targeted reads", async () => {
     const { hooks } = makeConfig({
         isLargeFile: () => true,

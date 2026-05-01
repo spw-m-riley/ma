@@ -82,6 +82,22 @@ function normalizePromptInput(input) {
     return "";
 }
 
+function normalizeToolArgs(toolArgs) {
+    if (typeof toolArgs === "string") {
+        try {
+            return JSON.parse(toolArgs);
+        } catch {
+            return undefined;
+        }
+    }
+
+    if (toolArgs && typeof toolArgs === "object") {
+        return toolArgs;
+    }
+
+    return undefined;
+}
+
 export function hasReadIntent(input) {
     const prompt = normalizePromptInput(input).replace(/\s+/g, " ").trim();
     if (!prompt) {
@@ -286,11 +302,12 @@ export function createSessionConfig({
                 try {
                     if (input.toolName !== "view") return;
 
-                    const filePath = input.toolArgs?.path;
+                    const toolArgs = normalizeToolArgs(input.toolArgs);
+                    const filePath = toolArgs?.path;
                     if (!filePath) return;
 
-                    if (isTargetedRead(input.toolArgs)) return;
-                    if (input.toolArgs?.forceReadLargeFiles) return;
+                    if (isTargetedRead(toolArgs)) return;
+                    if (toolArgs?.forceReadLargeFiles) return;
                     if (!isLargeFile(filePath, input.cwd)) return;
 
                     await safeLog(
