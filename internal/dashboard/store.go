@@ -23,6 +23,7 @@ type Store struct {
 type FinishedRun struct {
 	ID         string
 	Command    string
+	Source     string
 	StartedAt  time.Time
 	FinishedAt time.Time
 	Success    bool
@@ -44,6 +45,7 @@ type Summary struct {
 type HistoryEntry struct {
 	ID         string
 	Command    string
+	Source     string
 	StartedAt  time.Time
 	FinishedAt time.Time
 	Success    bool
@@ -55,6 +57,7 @@ type HistoryEntry struct {
 type persistedRun struct {
 	ID         string    `json:"id"`
 	Command    string    `json:"command"`
+	Source     string    `json:"source,omitempty"`
 	StartedAt  time.Time `json:"startedAt"`
 	FinishedAt time.Time `json:"finishedAt"`
 	Success    bool      `json:"success"`
@@ -83,6 +86,7 @@ func (s *Store) RecordFinished(run FinishedRun) error {
 	record := persistedRun{
 		ID:         run.ID,
 		Command:    run.Command,
+		Source:     run.Source,
 		StartedAt:  run.StartedAt,
 		FinishedAt: run.FinishedAt,
 		Success:    run.Success,
@@ -149,6 +153,7 @@ func (s *Store) History() ([]HistoryEntry, error) {
 		entries = append(entries, HistoryEntry{
 			ID:         record.ID,
 			Command:    record.Command,
+			Source:     record.Source,
 			StartedAt:  record.StartedAt,
 			FinishedAt: record.FinishedAt,
 			Success:    record.Success,

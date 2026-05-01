@@ -17,6 +17,7 @@ type RunsSnapshot struct {
 type RunView struct {
 	ID            string     `json:"id"`
 	Command       string     `json:"command"`
+	Source        string     `json:"source,omitempty"`
 	Status        string     `json:"status"`
 	StartedAt     time.Time  `json:"startedAt"`
 	FinishedAt    *time.Time `json:"finishedAt,omitempty"`
@@ -57,6 +58,7 @@ func (t *runTracker) Apply(event RunEvent) {
 	current := t.runs[event.ID]
 	current.ID = event.ID
 	current.Command = event.Command
+	current.Source = event.Source
 	current.Status = event.Kind
 	current.StartedAt = event.StartedAt
 	current.FinishedAt = event.FinishedAt

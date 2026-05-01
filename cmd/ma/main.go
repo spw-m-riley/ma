@@ -11,9 +11,11 @@ import (
 	"github.com/spw-m-riley/ma/internal/dashboard"
 	dedupcmd "github.com/spw-m-riley/ma/internal/dedup"
 	historycmd "github.com/spw-m-riley/ma/internal/history"
+	maintaincmd "github.com/spw-m-riley/ma/internal/maintain"
 	markdowncmd "github.com/spw-m-riley/ma/internal/markdown"
 	"github.com/spw-m-riley/ma/internal/prose"
 	schemacmd "github.com/spw-m-riley/ma/internal/schema"
+	smartreadcmd "github.com/spw-m-riley/ma/internal/smartread"
 	validatecmd "github.com/spw-m-riley/ma/internal/validate"
 )
 
@@ -39,6 +41,8 @@ func newRootCommand(stdout io.Writer, stderr io.Writer) *cobra.Command {
 		newTrimImportsCommand(stdout, &jsonOutput),
 		newDedupCommand(stdout, &jsonOutput),
 		newCompactHistoryCommand(stdout, &jsonOutput),
+		newSmartReadCommand(stdout, &jsonOutput),
+		newMaintainCommand(stdout, &jsonOutput),
 		newDashboardCommand(stdout),
 	)
 
@@ -221,6 +225,51 @@ func newCompactHistoryCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command
 		},
 	}
 	command.Flags().BoolVar(&write, "write", false, "write compacted transcript back to file")
+
+	return command
+}
+
+func newSmartReadCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "smart-read <file>",
+		Short: "Classify and reduce a file for context consumption",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			result, err := dashboard.ObserveRun("smart-read", args, func() (app.Result, error) {
+				return smartreadcmd.NewCommand().Run(args)
+			})
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+
+	return command
+}
+
+func newMaintainCommand(stdout io.Writer, jsonOutput *bool) *cobra.Command {
+	var write bool
+
+	command := &cobra.Command{
+		Use:   "maintain <directory>",
+		Short: "Batch compress and deduplicate instruction files",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			result, err := dashboard.ObserveRun("maintain", args, func() (app.Result, error) {
+				runArgs := []string{args[0]}
+				if write {
+					runArgs = append([]string{"--write"}, runArgs...)
+				}
+				return maintaincmd.NewCommand().Run(runArgs)
+			})
+			if err != nil {
+				return err
+			}
+			return app.WriteResult(stdout, result, *jsonOutput)
+		},
+	}
+	command.Flags().BoolVar(&write, "write", false, "write compressed files back with .ma.bak backups")
 
 	return command
 }

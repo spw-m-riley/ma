@@ -15,6 +15,7 @@ import (
 )
 
 const stateDirEnv = "MA_DASHBOARD_STATE_DIR"
+const sourceEnv = "MA_SOURCE"
 const (
 	eventKindStarted  = "started"
 	eventKindFinished = "finished"
@@ -30,6 +31,7 @@ type RunEvent struct {
 	Kind          string     `json:"kind"`
 	ID            string     `json:"id"`
 	Command       string     `json:"command"`
+	Source        string     `json:"source,omitempty"`
 	StartedAt     time.Time  `json:"startedAt"`
 	FinishedAt    *time.Time `json:"finishedAt,omitempty"`
 	Success       bool       `json:"success"`
@@ -58,6 +60,7 @@ func ObserveRun(commandName string, args []string, run func() (app.Result, error
 	startedAt := time.Now().UTC()
 	runID := fmt.Sprintf("%d-%d", startedAt.UnixNano(), os.Getpid())
 	input, payloadStatus := collectInputPayload(args)
+	source := os.Getenv(sourceEnv)
 
 	root, rootErr := DefaultRoot()
 	if rootErr == nil {
@@ -65,6 +68,7 @@ func ObserveRun(commandName string, args []string, run func() (app.Result, error
 			Kind:          eventKindStarted,
 			ID:            runID,
 			Command:       commandName,
+			Source:        source,
 			StartedAt:     startedAt,
 			PayloadStatus: payloadStatus,
 		}); err != nil {
@@ -81,7 +85,7 @@ func ObserveRun(commandName string, args []string, run func() (app.Result, error
 	store, err := OpenStore(root)
 	if err != nil {
 		_ = recordDiagnostic(root, "history persistence unavailable: "+err.Error())
-		if err := publishEvent(root, finishedEvent(runID, commandName, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
+		if err := publishEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
 			_ = recordDiagnostic(root, "event delivery failed for finished event: "+err.Error())
 		}
 		return result, runErr
@@ -90,6 +94,7 @@ func ObserveRun(commandName string, args []string, run func() (app.Result, error
 	if err := store.RecordFinished(FinishedRun{
 		ID:         runID,
 		Command:    commandName,
+		Source:     source,
 		StartedAt:  startedAt,
 		FinishedAt: finishedAt,
 		Success:    runErr == nil,
@@ -98,13 +103,13 @@ func ObserveRun(commandName string, args []string, run func() (app.Result, error
 		Result:     withCommand(result, commandName),
 	}); err != nil {
 		_ = recordDiagnostic(root, "history persistence failed: "+err.Error())
-		if err := publishEvent(root, finishedEvent(runID, commandName, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
+		if err := publishEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
 			_ = recordDiagnostic(root, "event delivery failed for finished event: "+err.Error())
 		}
 		return result, runErr
 	}
 
-	if err := publishEvent(root, finishedEvent(runID, commandName, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
+	if err := publishEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
 		_ = recordDiagnostic(root, "event delivery failed for finished event: "+err.Error())
 	}
 	return result, runErr
@@ -202,7 +207,7 @@ func formatInputBlock(path string, content string) string {
 	return fmt.Sprintf("=== %s ===\n%s", path, content)
 }
 
-func finishedEvent(runID string, commandName string, startedAt time.Time, finishedAt time.Time, input string, payloadStatus string, result app.Result, runErr error) RunEvent {
+func finishedEvent(runID string, commandName string, source string, startedAt time.Time, finishedAt time.Time, input string, payloadStatus string, result app.Result, runErr error) RunEvent {
 	kind := eventKindFinished
 	if runErr != nil {
 		kind = eventKindFailed
@@ -211,6 +216,7 @@ func finishedEvent(runID string, commandName string, startedAt time.Time, finish
 		Kind:          kind,
 		ID:            runID,
 		Command:       commandName,
+		Source:        source,
 		StartedAt:     startedAt,
 		FinishedAt:    &finishedAt,
 		Success:       runErr == nil,
