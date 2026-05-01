@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/spw-m-riley/ma/compare/v1.1.0...v1.2.0) (2026-05-01)
+
+
+### Features
+
+* activate ma extension integration ([3d95722](https://github.com/spw-m-riley/ma/commit/3d9572298d11eb18542292fe214935490fefc4f9))
+
+
+### Bug Fixes
+
+* dashboard event delivery race, stale run detection, and extension null guards ([a34aa91](https://github.com/spw-m-riley/ma/commit/a34aa91b4d0827e4e949cd6f8c3e8d7ad917d810))
+* normalize stringified extension tool args ([52121b2](https://github.com/spw-m-riley/ma/commit/52121b21dfc92851811579a07398cd6aab938951))
+
 ## [1.1.0](https://github.com/spw-m-riley/ma/compare/v1.0.1...v1.1.0) (2026-05-01)
 
 
