@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/spw-m-riley/ma/compare/v1.0.0...v1.0.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* group dashboard stats by calendar month ([cb99cf7](https://github.com/spw-m-riley/ma/commit/cb99cf7586ee4ade8121a21f96bf591aca62a40b))
+
 ## 1.0.0 (2026-05-01)
 
 
