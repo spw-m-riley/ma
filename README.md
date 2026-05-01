@@ -5,6 +5,18 @@
 
 `ma` is a deterministic, offline Go CLI for reducing LLM context payload size without making external API calls.
 
+## Install
+
+### Homebrew
+
+Release builds are published from the CGO-enabled macOS build used for the
+tree-sitter-backed TS/JS reducers.
+
+```bash
+brew tap spw-m-riley/tools
+brew install --cask spw-m-riley/tools/ma
+```
+
 ## What it covers
 
 `ma` currently provides:

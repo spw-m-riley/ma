@@ -1,0 +1,48 @@
+version: 2
+
+project_name: ma
+
+builds:
+  - env:
+      - CGO_ENABLED=1
+    main: ./cmd/ma
+    binary: ma
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+
+release:
+  replace_existing_artifacts: true
+
+homebrew_casks:
+  - repository:
+      owner: spw-m-riley
+      name: homebrew-tools
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    binaries:
+      - ma
+    homepage: "https://github.com/spw-m-riley/ma"
+    description: "Deterministic context-reduction tooling"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/ma"]
+          end
