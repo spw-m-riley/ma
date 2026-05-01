@@ -16,14 +16,22 @@ func Compress(input string) string {
 	for _, zone := range zs {
 		text := zone.Text
 		if zone.Kind == zones.Prose {
-			for _, rule := range defaultRules() {
-				text = rule.Pattern.ReplaceAllString(text, rule.Replacement)
-			}
+			text = applyPhases(text)
 			text = normalizeWhitespace(text)
 		}
 		out.WriteString(text)
 	}
 	return out.String()
+}
+
+func applyPhases(input string) string {
+	for _, phase := range rulePhases() {
+		for _, rule := range phase.Rules {
+			input = rule.Pattern.ReplaceAllString(input, rule.Replacement)
+		}
+	}
+
+	return input
 }
 
 func normalizeWhitespace(input string) string {

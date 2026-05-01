@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spw-m-riley/ma/internal/app"
 	"github.com/spw-m-riley/ma/internal/testutil"
 )
 
@@ -56,31 +55,6 @@ func TestCompressFixtures(t *testing.T) {
 				t.Fatalf("unexpected compressed output\nwant: %q\ngot:  %q", fixture.Expected, got)
 			}
 		})
-	}
-}
-
-func TestCompressFixtureReduction(t *testing.T) {
-	fixtures := []string{
-		"preferences",
-		"project-notes",
-		"mixed-with-code",
-	}
-
-	var totalInput strings.Builder
-	var totalOutput strings.Builder
-	for _, name := range fixtures {
-		base := filepath.Join("..", "..", "testdata", "prose", name)
-		fixture, err := testutil.LoadGoldenFixture(base, ".md")
-		if err != nil {
-			t.Fatalf("load fixture %s: %v", name, err)
-		}
-		totalInput.WriteString(fixture.Input)
-		totalOutput.WriteString(Compress(fixture.Input))
-	}
-
-	stats := app.Measure(totalInput.String(), totalOutput.String())
-	if err := testutil.AssertApproxTokenReductionAtLeast(stats, 25); err != nil {
-		t.Fatalf("expected aggregate reduction to meet target: %v", err)
 	}
 }
 

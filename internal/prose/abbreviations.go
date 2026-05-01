@@ -1,0 +1,37 @@
+package prose
+
+func technicalAbbreviationRules() []Rule {
+	return []Rule{
+		newRule("configuration", `\bconfiguration\b`, "config"),
+		newRule("configurations", `\bconfigurations\b`, "configs"),
+		newRule("repository", `\brepository\b`, "repo"),
+		newRule("repositories", `\brepositories\b`, "repos"),
+		newRule("environment", `\benvironment\b`, "env"),
+		newRule("environments", `\benvironments\b`, "envs"),
+		newRule("authentication", `\bauthentication\b`, "auth"),
+		newRule("documentation", `\bdocumentation\b`, "docs"),
+		newRule("implementation", `\bimplementation\b`, "impl"),
+		newRule("application", `\bapplication\b`, "app"),
+		newRule("applications", `\bapplications\b`, "apps"),
+		newRule("language-model", `\blanguage model\b`, "LLM"),
+		newRule("language-models", `\blanguage models\b`, "LLMs"),
+		newRule("package", `\bpackage\b`, "pkg"),
+		newRule("packages", `\bpackages\b`, "pkgs"),
+		newRule("variable", `\bvariable\b`, "var"),
+		newRule("variables", `\bvariables\b`, "vars"),
+		newRule("identifier", `\bidentifier\b`, "id"),
+		newRule("identifiers", `\bidentifiers\b`, "ids"),
+		newRule("message", `\bmessage\b`, "msg"),
+		newRule("messages", `\bmessages\b`, "msgs"),
+		newRule("parameter", `\bparameter\b`, "param"),
+		newRule("parameters", `\bparameters\b`, "params"),
+		newRule("request", `\brequest\b`, "req"),
+		newRule("requests", `\brequests\b`, "reqs"),
+		newRule("response", `\bresponse\b`, "resp"),
+		newRule("responses", `\bresponses\b`, "resps"),
+		newRule("database", `\bdatabase\b`, "db"),
+		newRule("databases", `\bdatabases\b`, "dbs"),
+		newRule("operation", `\boperation\b`, "op"),
+		newRule("operations", `\boperations\b`, "ops"),
+	}
+}

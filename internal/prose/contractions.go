@@ -1,0 +1,36 @@
+package prose
+
+func contractionRules() []Rule {
+	return []Rule{
+		newRule("do-not-capitalized", `\bDo not\b`, "Don't"),
+		newRule("do-not", `\bdo not\b`, "don't"),
+		newRule("does-not-capitalized", `\bDoes not\b`, "Doesn't"),
+		newRule("does-not", `\bdoes not\b`, "doesn't"),
+		newRule("did-not-capitalized", `\bDid not\b`, "Didn't"),
+		newRule("did-not", `\bdid not\b`, "didn't"),
+		newRule("cannot-capitalized", `\bCannot\b`, "Can't"),
+		newRule("cannot", `\bcannot\b`, "can't"),
+		newRule("could-not-capitalized", `\bCould not\b`, "Couldn't"),
+		newRule("could-not", `\bcould not\b`, "couldn't"),
+		newRule("should-not-capitalized", `\bShould not\b`, "Shouldn't"),
+		newRule("should-not", `\bshould not\b`, "shouldn't"),
+		newRule("would-not-capitalized", `\bWould not\b`, "Wouldn't"),
+		newRule("would-not", `\bwould not\b`, "wouldn't"),
+		newRule("will-not-capitalized", `\bWill not\b`, "Won't"),
+		newRule("will-not", `\bwill not\b`, "won't"),
+		newRule("is-not-capitalized", `\bIs not\b`, "Isn't"),
+		newRule("is-not", `\bis not\b`, "isn't"),
+		newRule("are-not-capitalized", `\bAre not\b`, "Aren't"),
+		newRule("are-not", `\bare not\b`, "aren't"),
+		newRule("was-not-capitalized", `\bWas not\b`, "Wasn't"),
+		newRule("was-not", `\bwas not\b`, "wasn't"),
+		newRule("were-not-capitalized", `\bWere not\b`, "Weren't"),
+		newRule("were-not", `\bwere not\b`, "weren't"),
+		newRule("has-not-capitalized", `\bHas not\b`, "Hasn't"),
+		newRule("has-not", `\bhas not\b`, "hasn't"),
+		newRule("have-not-capitalized", `\bHave not\b`, "Haven't"),
+		newRule("have-not", `\bhave not\b`, "haven't"),
+		newRule("had-not-capitalized", `\bHad not\b`, "Hadn't"),
+		newRule("had-not", `\bhad not\b`, "hadn't"),
+	}
+}
