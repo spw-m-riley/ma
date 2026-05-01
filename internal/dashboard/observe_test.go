@@ -128,7 +128,12 @@ func TestObserveRunRecordsDiagnosticWhenPersistenceFails(t *testing.T) {
 		t.Fatalf("expected compress result, got %q", result.Command)
 	}
 
-	diagnosticsBytes, err := os.ReadFile(filepath.Join(parent, diagnosticsFileName))
+	diagnosticsPath := filepath.Join(parent, diagnosticsFileName)
+	// ObserveRun returns before background delivery drains, so wait for the
+	// finished-event failure before TempDir cleanup races that write.
+	waitForDiagnostic(t, diagnosticsPath, "event delivery failed for finished event")
+
+	diagnosticsBytes, err := os.ReadFile(diagnosticsPath)
 	if err != nil {
 		t.Fatalf("read diagnostics file: %v", err)
 	}
