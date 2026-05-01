@@ -131,6 +131,9 @@ function createTools() {
                 required: ["path"],
             },
             handler: async (args) => {
+                if (!args?.path) {
+                    return { textResultForLlm: "Error: path argument is required", resultType: "failure" };
+                }
                 if (isSensitivePathResolved(args.path)) {
                     return sensitivePathResponse(args.path);
                 }
@@ -162,6 +165,9 @@ function createTools() {
                 required: ["path"],
             },
             handler: async (args) => {
+                if (!args?.path) {
+                    return { textResultForLlm: "Error: path argument is required", resultType: "failure" };
+                }
                 if (isSensitivePathResolved(args.path)) {
                     return sensitivePathResponse(args.path);
                 }
@@ -194,6 +200,9 @@ function createTools() {
                 required: ["path"],
             },
             handler: async (args) => {
+                if (!args?.path) {
+                    return { textResultForLlm: "Error: path argument is required", resultType: "failure" };
+                }
                 if (isSensitivePathResolved(args.path)) {
                     return sensitivePathResponse(args.path);
                 }
@@ -226,6 +235,9 @@ function createTools() {
                 required: ["path"],
             },
             handler: async (args) => {
+                if (!args?.path) {
+                    return { textResultForLlm: "Error: path argument is required", resultType: "failure" };
+                }
                 if (isSensitivePathResolved(args.path)) {
                     return sensitivePathResponse(args.path);
                 }

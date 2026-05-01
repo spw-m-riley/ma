@@ -357,6 +357,7 @@ var dashboardPageTemplate = template.Must(template.New("dashboard").Funcs(dashbo
     .status-finished { background: var(--success-bg); color: var(--success-text); }
     .status-started { background: var(--active-bg); color: var(--active-text); }
     .status-failed { background: var(--failed-bg); color: var(--failed-text); }
+    .status-stale { background: var(--border); color: var(--muted); }
     .run-time {
       color: var(--muted);
       font-size: 0.92rem;
@@ -469,6 +470,9 @@ var dashboardPageTemplate = template.Must(template.New("dashboard").Funcs(dashbo
         }
         if (status === 'started') {
           return { className: 'status-started', label: 'Active' };
+        }
+        if (status === 'stale') {
+          return { className: 'status-stale', label: 'Stale' };
         }
         return { className: 'status-finished', label: 'Completed' };
       }
@@ -1007,6 +1011,7 @@ var detailPageTemplate = template.Must(template.New("detail").Funcs(dashboardTem
     .status-finished { background: var(--success-bg); color: var(--success-text); }
     .status-started { background: var(--active-bg); color: var(--active-text); }
     .status-failed { background: var(--failed-bg); color: var(--failed-text); }
+    .status-stale { background: var(--border); color: var(--muted); }
     .detail-header {
       padding-bottom: 1rem;
       border-bottom: 1px solid var(--border);
@@ -1201,7 +1206,7 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 		TotalRuns:              summary.TotalRuns,
 		SuccessfulRuns:         summary.SuccessfulRuns,
 		FailedRuns:             summary.FailedRuns,
-		ActiveRuns:             countActiveRuns(s.runs.Snapshot().Runs),
+		ActiveRuns:             countActiveRuns(s.runs.Snapshot().Runs, time.Now().UTC()),
 		TotalBytesSaved:        summary.TotalBytesSaved,
 		TotalWordsSaved:        summary.TotalWordsSaved,
 		TotalApproxTokensSaved: summary.TotalApproxTokensSaved,
@@ -1291,6 +1296,8 @@ func (s *Server) handleOverviewSnapshot(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	runs := s.runs.Snapshot().Runs
+	now := time.Now().UTC()
+	deriveEffectiveStatus(runs, now)
 	payload := overviewSnapshot{
 		Summary: summarySnapshot{
 			TotalRuns:              summary.TotalRuns,
@@ -1301,7 +1308,7 @@ func (s *Server) handleOverviewSnapshot(w http.ResponseWriter, r *http.Request) 
 			TotalApproxTokensSaved: summary.TotalApproxTokensSaved,
 		},
 		CommandUsage: sortedCommandUsage(summary.CommandUsage),
-		ActiveRuns:   countActiveRuns(runs),
+		ActiveRuns:   countActiveRuns(runs, now),
 		Runs:         runs,
 	}
 
@@ -1416,10 +1423,26 @@ func buildTrendRows(history []HistoryEntry) []trendRow {
 	return result
 }
 
-func countActiveRuns(runs []RunView) int {
+const staleRunThreshold = 60 * time.Second
+
+// deriveEffectiveStatus replaces "started" with "stale" in the status field
+// for runs that have been active longer than the stale threshold. This keeps
+// stale detection in one place so the JS polling path renders what the server
+// computes.
+func deriveEffectiveStatus(runs []RunView, now time.Time) {
+	cutoff := now.Add(-staleRunThreshold)
+	for i := range runs {
+		if runs[i].Status == eventKindStarted && !runs[i].StartedAt.After(cutoff) {
+			runs[i].Status = "stale"
+		}
+	}
+}
+
+func countActiveRuns(runs []RunView, now time.Time) int {
 	activeRuns := 0
+	cutoff := now.Add(-staleRunThreshold)
 	for _, run := range runs {
-		if run.Status == eventKindStarted {
+		if run.Status == eventKindStarted && run.StartedAt.After(cutoff) {
 			activeRuns++
 		}
 	}
@@ -1429,7 +1452,7 @@ func countActiveRuns(runs []RunView) int {
 func buildRecentRunRows(runs []RunView) []recentRunRow {
 	rows := make([]recentRunRow, 0, len(runs))
 	for _, run := range runs {
-		statusLabel, statusClass := statusPresentation(run.Status)
+		statusLabel, statusClass := statusPresentation(run.Status, run.StartedAt)
 		rows = append(rows, recentRunRow{
 			ID:          run.ID,
 			Command:     run.Command,
@@ -1556,7 +1579,7 @@ func strongestSavingsMonth(rows []trendRow) (trendRow, bool) {
 }
 
 func buildDetailPageData(detail RunDetail) detailPageData {
-	statusLabel, statusClass := statusPresentation(detail.Status)
+	statusLabel, statusClass := statusPresentation(detail.Status, detail.StartedAt)
 	summary := detail.ResultSummary
 	if summary == "" {
 		summary = detailSummary(detail)
@@ -1692,10 +1715,15 @@ func runTimestampLabel(run RunView) string {
 	return "Awaiting timestamp"
 }
 
-func statusPresentation(status string) (string, string) {
+func statusPresentation(status string, startedAt time.Time) (string, string) {
 	switch status {
 	case eventKindStarted:
+		if time.Since(startedAt) > staleRunThreshold {
+			return "Stale", "status-stale"
+		}
 		return "Active", "status-started"
+	case "stale":
+		return "Stale", "status-stale"
 	case eventKindFailed:
 		return "Failed", "status-failed"
 	default:

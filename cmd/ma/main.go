@@ -297,7 +297,9 @@ func notImplementedCommand(name string) *cobra.Command {
 }
 
 func main() {
-	if err := newRootCommand(os.Stdout, os.Stderr).Execute(); err != nil {
+	err := newRootCommand(os.Stdout, os.Stderr).Execute()
+	dashboard.FlushEvents()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

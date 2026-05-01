@@ -74,7 +74,7 @@ func TestServerRendersActivityFirstOverviewLayout(t *testing.T) {
 	}
 
 	handler := NewServer(store).Handler()
-	startedAt := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	startedAt := time.Now().UTC().Add(-5 * time.Second)
 	finishedAt := startedAt.Add(4 * time.Second)
 
 	if err := store.RecordFinished(FinishedRun{
@@ -133,7 +133,6 @@ func TestServerRendersActivityFirstOverviewLayout(t *testing.T) {
 		`recent-runs-head`,
 		`status-pill status-failed`,
 		`status-pill status-started`,
-		`2026-04-30 12:00:04 UTC`,
 		`View stats`,
 		`duplicate scan exceeded budget`,
 	} {
@@ -286,7 +285,7 @@ func TestServerExposesOverviewSnapshot(t *testing.T) {
 	}
 
 	handler := NewServer(store).Handler()
-	activeStartedAt := finishedStartedAt.Add(10 * time.Second)
+	activeStartedAt := time.Now().UTC().Add(-5 * time.Second)
 	postDashboardEvent(t, handler, RunEvent{
 		Kind:      eventKindStarted,
 		ID:        "run-active",
