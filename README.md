@@ -93,7 +93,7 @@ Mutating commands (`compress`, `optimize-md`, `minify-schema`, `compact-history`
 ```bash
 go build ./cmd/ma
 go test ./...
-node --test extension/runtime.test.mjs
+node --test extension/runtime.test.mjs extension/extension.test.mjs
 ```
 
 Go code reduction stays on the standard-library parser and formatter path. When built with `CGO_ENABLED=1`, `ma skeleton` and `ma trim-imports` use tree-sitter for `.ts`, `.tsx`, `.js`, and `.jsx`. That path requires a working C toolchain. Builds with `CGO_ENABLED=0` still work, but TS/JS processing falls back to the existing heuristic reducers.

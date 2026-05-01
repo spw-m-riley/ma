@@ -74,8 +74,8 @@ function looksLikeSensitivePathError(error) {
 
 // --- View intercept helpers ---
 
-const VIEW_LINE_THRESHOLD = 200;
-const VIEW_SIZE_GATE_BYTES = 10 * 1024; // 10KB fast gate before line counting
+export const VIEW_LINE_THRESHOLD = 200;
+export const VIEW_SIZE_GATE_BYTES = 10 * 1024; // 10KB fast gate before line counting
 
 export function isLargeFile(filePath, cwd) {
     try {

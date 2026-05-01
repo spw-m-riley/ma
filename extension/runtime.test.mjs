@@ -9,6 +9,8 @@ import {
     isLargeFile,
     isSensitivePathResolved,
     isTargetedRead,
+    VIEW_LINE_THRESHOLD,
+    VIEW_SIZE_GATE_BYTES,
 } from "./runtime.mjs";
 
 // --- Sensitive path tests ---
@@ -49,6 +51,11 @@ test("fallbackForRead only raw-falls back for safe paths", () => {
 });
 
 // --- isTargetedRead tests ---
+
+test("runtime exports the shared view thresholds", () => {
+    assert.equal(VIEW_LINE_THRESHOLD, 200);
+    assert.equal(VIEW_SIZE_GATE_BYTES, 10 * 1024);
+});
 
 test("isTargetedRead returns false when no view_range", () => {
     assert.equal(isTargetedRead({}), false);
