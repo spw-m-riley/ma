@@ -56,7 +56,7 @@ JSON stats keep the existing `inputApproxTokens` and `outputApproxTokens` field 
 | Validation and analysis (`validate`, `dedup`, `maintain`) | Stable | Local analysis and hygiene tooling |
 | `smart-read` | Stable | Reduces supported file types and explicitly passes through unsupported ones |
 | `dashboard` | Experimental | Local-only companion UI for live runs, durable stats, and recent detail pages |
-| Copilot extension (`.github/extensions/ma`) | Experimental | Reuses the same CLI reducers for context-aware file reads |
+| Copilot extension (`extension/`) | Experimental | Reuses the same CLI reducers for context-aware file reads |
 | Packaged distribution | macOS-only today | Homebrew cask is the supported prebuilt path; source builds remain available elsewhere |
 
 ## Smart-read support matrix
@@ -93,7 +93,7 @@ Mutating commands (`compress`, `optimize-md`, `minify-schema`, `compact-history`
 ```bash
 go build ./cmd/ma
 go test ./...
-node --test .github/extensions/ma/runtime.test.mjs
+node --test extension/runtime.test.mjs
 ```
 
 Go code reduction stays on the standard-library parser and formatter path. When built with `CGO_ENABLED=1`, `ma skeleton` and `ma trim-imports` use tree-sitter for `.ts`, `.tsx`, `.js`, and `.jsx`. That path requires a working C toolchain. Builds with `CGO_ENABLED=0` still work, but TS/JS processing falls back to the existing heuristic reducers.

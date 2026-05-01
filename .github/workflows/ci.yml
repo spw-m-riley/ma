@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: "24"
       - name: Run extension runtime tests
-        run: node --test .github/extensions/ma/runtime.test.mjs
+        run: node --test extension/runtime.test.mjs
       - name: Run Go tests
         run: go test ./...
       - name: Build CLI
