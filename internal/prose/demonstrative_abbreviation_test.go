@@ -76,20 +76,35 @@ func TestCompressTechnicalAbbreviationsRespectWordBoundaries(t *testing.T) {
 	}
 }
 
-func TestCompressRepoInstructionsAchievesReduction(t *testing.T) {
-	path := filepath.Join("..", "..", ".github", "copilot-instructions.md")
+func repoCompressionSamplePath() string {
+	return filepath.Join("..", "..", "README.md")
+}
+
+func TestRepoCompressionSamplePathUsesTrackedRepoDoc(t *testing.T) {
+	want := filepath.Join("..", "..", "README.md")
+
+	if got := repoCompressionSamplePath(); got != want {
+		t.Fatalf("unexpected repo sample path\nwant: %q\ngot:  %q", want, got)
+	}
+	if _, err := os.ReadFile(want); err != nil {
+		t.Fatalf("read repo sample: %v", err)
+	}
+}
+
+func TestCompressTrackedRepoDocAchievesReduction(t *testing.T) {
+	path := repoCompressionSamplePath()
 	inputBytes, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read instructions: %v", err)
+		t.Fatalf("read repo sample: %v", err)
 	}
 
 	input := string(inputBytes)
 	output := Compress(input)
 	stats := app.Measure(input, output)
 	if stats.OutputApproxTokens >= stats.InputApproxTokens {
-		t.Fatalf("expected compressed instructions to reduce tokens, got input=%d output=%d", stats.InputApproxTokens, stats.OutputApproxTokens)
+		t.Fatalf("expected compressed repo sample to reduce tokens, got input=%d output=%d", stats.InputApproxTokens, stats.OutputApproxTokens)
 	}
 	if report := validate.Compare(input, output); !report.Valid {
-		t.Fatalf("expected compressed instructions to remain structurally valid: %v", report.Error())
+		t.Fatalf("expected compressed repo sample to remain structurally valid: %v", report.Error())
 	}
 }
