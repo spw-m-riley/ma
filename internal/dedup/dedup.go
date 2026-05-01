@@ -120,7 +120,7 @@ func nearDuplicates(occurrences []sentenceOccurrence, threshold float64) []Dupli
 
 // selectCandidatePairs uses algorithmic reduction to select pairs worth comparing
 // It groups sentences by word count and only compares within similar word count ranges
-func selectCandidatePairs(occurrences []sentenceOccurrence, threshold float64) [][2]int {
+func selectCandidatePairs(occurrences []sentenceOccurrence, _ float64) [][2]int {
 	// Group by word count
 	byWordCount := make(map[int][]int)
 	for idx, occ := range occurrences {
@@ -139,7 +139,7 @@ func selectCandidatePairs(occurrences []sentenceOccurrence, threshold float64) [
 	}
 	sort.Ints(sortedCounts)
 	
-	for _, wc := range sortedCounts {
+	for index, wc := range sortedCounts {
 		indices := byWordCount[wc]
 		
 		// Compare within the same word count
@@ -151,17 +151,21 @@ func selectCandidatePairs(occurrences []sentenceOccurrence, threshold float64) [
 			}
 		}
 		
-		// Compare with slightly different word counts (allow ±1)
-		for nextWC := wc + 1; nextWC <= wc+1 && nextWC < len(sortedCounts); nextWC++ {
-			if nextIndices, ok := byWordCount[nextWC]; ok {
-				for _, i := range indices {
-					for _, j := range nextIndices {
-						if i < j {
-							pairs = append(pairs, [2]int{i, j})
-						} else {
-							pairs = append(pairs, [2]int{j, i})
-						}
-					}
+		// Compare with the next actual word-count bucket when it differs by at most one word.
+		if index+1 >= len(sortedCounts) {
+			continue
+		}
+		nextWC := sortedCounts[index+1]
+		if nextWC-wc > 1 {
+			continue
+		}
+		nextIndices := byWordCount[nextWC]
+		for _, i := range indices {
+			for _, j := range nextIndices {
+				if i < j {
+					pairs = append(pairs, [2]int{i, j})
+				} else {
+					pairs = append(pairs, [2]int{j, i})
 				}
 			}
 		}

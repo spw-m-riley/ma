@@ -57,3 +57,20 @@ func TestCommandRunWriteCreatesBackupAndReplacesFile(t *testing.T) {
 		t.Fatalf("unexpected backup transcript %q", string(backup))
 	}
 }
+
+func TestCommandRunReportsChangedFalseWhenTranscriptIsAlreadyCompact(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "transcript.json")
+	content := `[{"role":"user","content":"ok"}]`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write temp transcript: %v", err)
+	}
+
+	result, err := NewCommand().Run([]string{path})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.Changed {
+		t.Fatalf("expected already compact transcript to report Changed=false")
+	}
+}

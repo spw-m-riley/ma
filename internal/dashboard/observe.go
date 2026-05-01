@@ -64,20 +64,19 @@ func ObserveRun(commandName string, args []string, run func() (app.Result, error
 
 	root, rootErr := DefaultRoot()
 	if rootErr == nil {
-		if err := publishEvent(root, RunEvent{
+		dispatchEvent(root, RunEvent{
 			Kind:          eventKindStarted,
 			ID:            runID,
 			Command:       commandName,
 			Source:        source,
 			StartedAt:     startedAt,
 			PayloadStatus: payloadStatus,
-		}); err != nil {
-			_ = recordDiagnostic(root, "event delivery failed for started event: "+err.Error())
-		}
+		})
 	}
 
 	result, runErr := run()
 	finishedAt := time.Now().UTC()
+	observedResult := trimObservedResult(withCommand(result, commandName))
 
 	if rootErr != nil {
 		return result, runErr
@@ -85,33 +84,30 @@ func ObserveRun(commandName string, args []string, run func() (app.Result, error
 	store, err := OpenStore(root)
 	if err != nil {
 		_ = recordDiagnostic(root, "history persistence unavailable: "+err.Error())
-		if err := publishEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
-			_ = recordDiagnostic(root, "event delivery failed for finished event: "+err.Error())
-		}
+		dispatchEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, observedResult, runErr))
 		return result, runErr
 	}
 
 	if err := store.RecordFinished(FinishedRun{
-		ID:         runID,
-		Command:    commandName,
-		Source:     source,
-		StartedAt:  startedAt,
-		FinishedAt: finishedAt,
-		Success:    runErr == nil,
-		Changed:    result.Changed,
-		Error:      errorMessage(runErr),
-		Result:     withCommand(result, commandName),
+		ID:            runID,
+		Command:       commandName,
+		Source:        source,
+		StartedAt:     startedAt,
+		FinishedAt:    finishedAt,
+		Success:       runErr == nil,
+		Changed:       observedResult.Changed,
+		Error:         errorMessage(runErr),
+		PayloadStatus: payloadStatus,
+		Input:         input,
+		ResultSummary: summarizeResult(observedResult, runErr),
+		Result:        observedResult,
 	}); err != nil {
 		_ = recordDiagnostic(root, "history persistence failed: "+err.Error())
-		if err := publishEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
-			_ = recordDiagnostic(root, "event delivery failed for finished event: "+err.Error())
-		}
+		dispatchEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, observedResult, runErr))
 		return result, runErr
 	}
 
-	if err := publishEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, withCommand(result, commandName), runErr)); err != nil {
-		_ = recordDiagnostic(root, "event delivery failed for finished event: "+err.Error())
-	}
+	dispatchEvent(root, finishedEvent(runID, commandName, source, startedAt, finishedAt, input, payloadStatus, observedResult, runErr))
 	return result, runErr
 }
 
@@ -139,14 +135,17 @@ func publishEvent(root string, event RunEvent) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
+		_ = clearSession(root)
 		return err
 	}
 
 	var session Session
 	if err := json.Unmarshal(sessionBytes, &session); err != nil {
+		_ = clearSession(root)
 		return err
 	}
 	if session.Address == "" {
+		_ = clearSession(root)
 		return nil
 	}
 
@@ -164,11 +163,13 @@ func publishEvent(root string, event RunEvent) error {
 	client := &http.Client{Timeout: 2 * time.Second}
 	response, err := client.Do(request)
 	if err != nil {
+		_ = clearSession(root)
 		return err
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		_ = clearSession(root)
 		return fmt.Errorf("event delivery returned status %d", response.StatusCode)
 	}
 
@@ -200,7 +201,7 @@ func collectInputPayload(args []string) (string, string) {
 	if len(blocks) == 0 {
 		return "", payloadStatusNone
 	}
-	return strings.Join(blocks, "\n\n"), payloadStatusObserved
+	return trimPayload(strings.Join(blocks, "\n\n"), payloadLimit()), payloadStatusObserved
 }
 
 func formatInputBlock(path string, content string) string {
@@ -233,6 +234,9 @@ func summarizeResult(result app.Result, runErr error) string {
 	if runErr != nil {
 		return runErr.Error()
 	}
+	if result.ProducedOutput && !result.Changed && zeroSavings(result.Stats) {
+		return "output generated without a tracked content delta"
+	}
 	stats := result.Stats
 	return fmt.Sprintf(
 		"changed=%t, saved %d bytes, %d words, %d approx tokens",
@@ -241,4 +245,34 @@ func summarizeResult(result app.Result, runErr error) string {
 		stats.InputWords-stats.OutputWords,
 		stats.InputApproxTokens-stats.OutputApproxTokens,
 	)
+}
+
+func trimObservedResult(result app.Result) app.Result {
+	if result.Output == "" {
+		return result
+	}
+	result.Output = trimPayload(result.Output, payloadLimit())
+	return result
+}
+
+func trimPayload(payload string, limit int) string {
+	if limit <= 0 || len(payload) <= limit {
+		return payload
+	}
+	omitted := len(payload) - limit
+	return payload[:limit] + fmt.Sprintf("\n... [truncated %d bytes] ...", omitted)
+}
+
+func zeroSavings(stats app.Stats) bool {
+	return stats.InputBytes == stats.OutputBytes &&
+		stats.InputWords == stats.OutputWords &&
+		stats.InputApproxTokens == stats.OutputApproxTokens
+}
+
+func clearSession(root string) error {
+	err := os.Remove(sessionPath(root))
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }

@@ -1,6 +1,7 @@
 package dedup
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -37,6 +38,26 @@ func TestDetectNearDuplicates(t *testing.T) {
 	}
 	if report.Near[0].Similarity < 0.6 {
 		t.Fatalf("expected near duplicate similarity >= 0.6, got %f", report.Near[0].Similarity)
+	}
+}
+
+func TestDetectNearDuplicatesAcrossAdjacentWordCounts(t *testing.T) {
+	dir := t.TempDir()
+	firstPath := filepath.Join(dir, "a.md")
+	secondPath := filepath.Join(dir, "b.md")
+	if err := os.WriteFile(firstPath, []byte("alpha beta gamma\n"), 0o644); err != nil {
+		t.Fatalf("write first file: %v", err)
+	}
+	if err := os.WriteFile(secondPath, []byte("alpha beta gamma delta\n"), 0o644); err != nil {
+		t.Fatalf("write second file: %v", err)
+	}
+
+	report, err := Analyze([]string{firstPath, secondPath}, 0.6)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(report.Near) != 1 {
+		t.Fatalf("expected 1 near duplicate across adjacent word counts, got %d", len(report.Near))
 	}
 }
 

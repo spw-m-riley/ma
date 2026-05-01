@@ -75,3 +75,37 @@ func TestSkeletonCommandDoesNotWriteFiles(t *testing.T) {
 		t.Fatalf("expected command to be read-only")
 	}
 }
+
+func TestSkeletonCommandReportsChangedFalseWhenOutputMatchesInput(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "constants.go")
+	content := "package main\n\nconst version = \"1.0\"\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write temp source: %v", err)
+	}
+
+	result, err := NewSkeletonCommand().Run([]string{path})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.Changed {
+		t.Fatalf("expected unchanged skeleton output to report Changed=false")
+	}
+}
+
+func TestTrimImportsCommandReportsChangedFalseWhenOutputMatchesInput(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "constants.go")
+	content := "package main\n\nconst version = \"1.0\"\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write temp source: %v", err)
+	}
+
+	result, err := NewTrimImportsCommand().Run([]string{path})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.Changed {
+		t.Fatalf("expected unchanged trim-imports output to report Changed=false")
+	}
+}

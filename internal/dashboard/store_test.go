@@ -105,3 +105,53 @@ func TestStorePersistsRunHistoryAndAggregates(t *testing.T) {
 		t.Fatalf("durable history unexpectedly persisted output body: %q", string(historyBytes))
 	}
 }
+
+func TestStoreEnforcesHistoryRetentionLimit(t *testing.T) {
+	t.Setenv("MA_DASHBOARD_HISTORY_LIMIT", "2")
+
+	root := t.TempDir()
+	store, err := OpenStore(root)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+
+	startedAt := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	for i, id := range []string{"run-1", "run-2", "run-3"} {
+		if err := store.RecordFinished(FinishedRun{
+			ID:         id,
+			Command:    "compress",
+			StartedAt:  startedAt.Add(time.Duration(i) * time.Minute),
+			FinishedAt: startedAt.Add(time.Duration(i)*time.Minute + time.Second),
+			Success:    true,
+			Result: app.Result{
+				Command: "compress",
+				Changed: true,
+				Stats: app.Stats{
+					InputBytes:         100,
+					OutputBytes:        60,
+					InputWords:         20,
+					OutputWords:        12,
+					InputApproxTokens:  25,
+					OutputApproxTokens: 15,
+				},
+			},
+		}); err != nil {
+			t.Fatalf("record run %s: %v", id, err)
+		}
+	}
+
+	reopened, err := OpenStore(root)
+	if err != nil {
+		t.Fatalf("re-open store: %v", err)
+	}
+	history, err := reopened.History()
+	if err != nil {
+		t.Fatalf("history: %v", err)
+	}
+	if len(history) != 2 {
+		t.Fatalf("expected retained history length 2, got %d", len(history))
+	}
+	if history[0].ID != "run-2" || history[1].ID != "run-3" {
+		t.Fatalf("expected retention to keep newest runs, got %+v", history)
+	}
+}

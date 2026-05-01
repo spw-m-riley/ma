@@ -29,15 +29,12 @@ func (Command) Run(args []string) (app.Result, error) {
 	}
 
 	output := renderReport(report)
-	inputSummary, err := readInputSummary(args)
-	if err != nil {
-		return app.Result{}, err
-	}
 	return app.Result{
-		Command: "dedup",
-		Changed: true,
-		Stats:   app.Measure(inputSummary, output),
-		Output:  output,
+		Command:        "dedup",
+		Changed:        false,
+		ProducedOutput: true,
+		Stats:          app.Stats{},
+		Output:         output,
 	}, nil
 }
 

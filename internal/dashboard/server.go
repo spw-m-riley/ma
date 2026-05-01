@@ -1159,9 +1159,16 @@ var detailPageTemplate = template.Must(template.New("detail").Funcs(dashboardTem
 </html>`))
 
 func NewServer(store *Store) *Server {
+	tracker := newRunTracker(recentRunLimit())
+	if store != nil {
+		if recentRuns, err := store.RecentRuns(); err == nil {
+			tracker.Seed(recentRuns)
+		}
+	}
+
 	return &Server{
 		store: store,
-		runs:  newRunTracker(defaultRecentRunLimit),
+		runs:  tracker,
 	}
 }
 

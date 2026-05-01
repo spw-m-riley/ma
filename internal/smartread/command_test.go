@@ -178,3 +178,62 @@ func TestSmartReadReductionFailureFallback(t *testing.T) {
 		t.Fatalf("expected passthrough content on reduction failure")
 	}
 }
+
+func TestSmartReadUnsupportedConfigUsesExplicitUnsupportedPassthrough(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "data.toml")
+
+	var lines []string
+	for i := 0; i < 250; i++ {
+		lines = append(lines, fmt.Sprintf("key%d = \"value%d\"", i, i))
+	}
+	content := strings.Join(lines, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write test file: %v", err)
+	}
+
+	result, err := NewCommand().Run([]string{path})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Changed {
+		t.Fatalf("expected unsupported config passthrough to keep Changed=false")
+	}
+	assertHasFinding(t, result.Findings, "classification=config")
+	assertHasFinding(t, result.Findings, "passthrough=unsupported_reducer")
+}
+
+func TestSmartReadUnsupportedCodeUsesExplicitUnsupportedPassthrough(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "script.py")
+
+	var lines []string
+	for i := 0; i < 250; i++ {
+		lines = append(lines, fmt.Sprintf("def example_%d():", i))
+		lines = append(lines, "    return 1")
+	}
+	content := strings.Join(lines, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write test file: %v", err)
+	}
+
+	result, err := NewCommand().Run([]string{path})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Changed {
+		t.Fatalf("expected unsupported code passthrough to keep Changed=false")
+	}
+	assertHasFinding(t, result.Findings, "classification=code")
+	assertHasFinding(t, result.Findings, "passthrough=unsupported_reducer")
+}
+
+func assertHasFinding(t *testing.T, findings []string, want string) {
+	t.Helper()
+	for _, finding := range findings {
+		if finding == want {
+			return
+		}
+	}
+	t.Fatalf("expected findings %v to include %q", findings, want)
+}

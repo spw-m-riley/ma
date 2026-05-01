@@ -7,11 +7,12 @@ import (
 )
 
 type Result struct {
-	Command  string   `json:"command"`
-	Changed  bool     `json:"changed"`
-	Stats    Stats    `json:"stats"`
-	Findings []string `json:"findings,omitempty"`
-	Output   string   `json:"output,omitempty"`
+	Command        string   `json:"command"`
+	Changed        bool     `json:"changed"`
+	Stats          Stats    `json:"stats"`
+	ProducedOutput bool     `json:"producedOutput,omitempty"`
+	Findings       []string `json:"findings,omitempty"`
+	Output         string   `json:"output,omitempty"`
 }
 
 func WriteResult(w io.Writer, result Result, jsonOutput bool) error {

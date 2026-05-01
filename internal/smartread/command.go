@@ -17,6 +17,20 @@ const defaultLineThreshold = 200
 
 type Command struct{}
 
+var supportedCodeExtensions = map[string]struct{}{
+	".go":  {},
+	".ts":  {},
+	".tsx": {},
+	".js":  {},
+	".jsx": {},
+}
+
+var supportedConfigExtensions = map[string]struct{}{
+	".json": {},
+	".yaml": {},
+	".yml":  {},
+}
+
 func NewCommand() Command {
 	return Command{}
 }
@@ -47,28 +61,58 @@ func (Command) Run(args []string) (app.Result, error) {
 	}
 
 	classification := detect.Classify(path, input)
+	if !supportsReduction(path, classification) {
+		return passthroughWithFindings(input,
+			fmt.Sprintf("classification=%s", classification),
+			"passthrough=unsupported_reducer",
+		), nil
+	}
 
 	output, findings, err := reduce(path, input, classification)
 	if err != nil {
-		return passthrough(input, "reduction_failed"), nil
+		return passthroughWithFindings(input,
+			fmt.Sprintf("classification=%s", classification),
+			"passthrough=reduction_failed",
+		), nil
 	}
 
 	return app.Result{
-		Command:  "smart-read",
-		Changed:  true,
-		Stats:    app.Measure(input, output),
-		Findings: append(findings, fmt.Sprintf("classification=%s", classification)),
-		Output:   output,
+		Command:        "smart-read",
+		Changed:        output != input,
+		ProducedOutput: true,
+		Stats:          app.Measure(input, output),
+		Findings:       append(findings, fmt.Sprintf("classification=%s", classification)),
+		Output:         output,
 	}, nil
 }
 
 func passthrough(input string, reason string) app.Result {
+	return passthroughWithFindings(input, fmt.Sprintf("passthrough=%s", reason))
+}
+
+func passthroughWithFindings(input string, findings ...string) app.Result {
 	return app.Result{
-		Command:  "smart-read",
-		Changed:  false,
-		Stats:    app.Measure(input, input),
-		Findings: []string{fmt.Sprintf("passthrough=%s", reason)},
-		Output:   input,
+		Command:        "smart-read",
+		Changed:        false,
+		ProducedOutput: true,
+		Stats:          app.Measure(input, input),
+		Findings:       findings,
+		Output:         input,
+	}
+}
+
+func supportsReduction(path string, classification detect.Classification) bool {
+	switch classification {
+	case detect.NaturalLanguage:
+		return true
+	case detect.Code:
+		_, ok := supportedCodeExtensions[filepath.Ext(path)]
+		return ok
+	case detect.Config:
+		_, ok := supportedConfigExtensions[filepath.Ext(path)]
+		return ok
+	default:
+		return false
 	}
 }
 

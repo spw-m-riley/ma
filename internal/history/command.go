@@ -50,9 +50,10 @@ func (Command) Run(args []string) (app.Result, error) {
 	}
 
 	return app.Result{
-		Command: "compact-history",
-		Changed: true,
-		Stats:   app.Measure(string(inputBytes), output),
-		Output:  output,
+		Command:        "compact-history",
+		Changed:        output != string(inputBytes),
+		ProducedOutput: true,
+		Stats:          app.Measure(string(inputBytes), output),
+		Output:         output,
 	}, nil
 }

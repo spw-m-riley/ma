@@ -1,34 +1,11 @@
 import { execFile } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
 import { joinSession } from "@github/copilot-sdk/extension";
-
-// Sensitive path components and basenames mirroring internal/detect
-const SENSITIVE_BASENAMES = new Set([
-    ".env", ".env.local", "id_rsa", "id_ed25519",
-    "credentials", "known_hosts", "authorized_keys",
-]);
-const SENSITIVE_COMPONENTS = new Set([".ssh", ".aws", ".gnupg", ".kube"]);
-
-function isSensitivePath(filePath) {
-    const parts = filePath.split(/[\\/]/);
-    const base = parts[parts.length - 1];
-    if (SENSITIVE_BASENAMES.has(base)) return true;
-    return parts.some((p) => SENSITIVE_COMPONENTS.has(p));
-}
-
-function findMaBinary() {
-    const repoRoot = process.cwd();
-    const candidates = [`${repoRoot}/ma`, `${repoRoot}/cmd/ma/ma`];
-    for (const candidate of candidates) {
-        try {
-            statSync(candidate);
-            return candidate;
-        } catch {
-            // continue
-        }
-    }
-    return "ma";
-}
+import {
+    fallbackForRead,
+    findMaBinary,
+    isSensitivePathResolved,
+    sensitivePathResponse,
+} from "./runtime.mjs";
 
 function runMaCommand(args, env) {
     return new Promise((resolve, reject) => {
@@ -42,14 +19,6 @@ function runMaCommand(args, env) {
             }
         });
     });
-}
-
-function rawFallback(filePath) {
-    try {
-        return readFileSync(filePath, "utf-8");
-    } catch (err) {
-        return `Error reading file: ${err.message}`;
-    }
 }
 
 const session = await joinSession({
@@ -72,11 +41,8 @@ const session = await joinSession({
                 required: ["path"],
             },
             handler: async (args) => {
-                if (isSensitivePath(args.path)) {
-                    return {
-                        textResultForLlm: `Refused: sensitive path ${args.path}`,
-                        resultType: "denied",
-                    };
+                if (isSensitivePathResolved(args.path)) {
+                    return sensitivePathResponse(args.path);
                 }
                 try {
                     const output = await runMaCommand(
@@ -84,9 +50,9 @@ const session = await joinSession({
                         { MA_SOURCE: "extension" },
                     );
                     const result = JSON.parse(output);
-                    return result.output || rawFallback(args.path);
-                } catch {
-                    return rawFallback(args.path);
+                    return result.output || fallbackForRead(args.path, new Error("empty smart-read output"));
+                } catch (err) {
+                    return fallbackForRead(args.path, err);
                 }
             },
         },
@@ -106,11 +72,8 @@ const session = await joinSession({
                 required: ["path"],
             },
             handler: async (args) => {
-                if (isSensitivePath(args.path)) {
-                    return {
-                        textResultForLlm: `Refused: sensitive path ${args.path}`,
-                        resultType: "denied",
-                    };
+                if (isSensitivePathResolved(args.path)) {
+                    return sensitivePathResponse(args.path);
                 }
                 try {
                     const output = await runMaCommand(
@@ -140,11 +103,8 @@ const session = await joinSession({
                 required: ["path"],
             },
             handler: async (args) => {
-                if (isSensitivePath(args.path)) {
-                    return {
-                        textResultForLlm: `Refused: sensitive path ${args.path}`,
-                        resultType: "denied",
-                    };
+                if (isSensitivePathResolved(args.path)) {
+                    return sensitivePathResponse(args.path);
                 }
                 try {
                     const output = await runMaCommand(
@@ -174,11 +134,8 @@ const session = await joinSession({
                 required: ["path"],
             },
             handler: async (args) => {
-                if (isSensitivePath(args.path)) {
-                    return {
-                        textResultForLlm: `Refused: sensitive path ${args.path}`,
-                        resultType: "denied",
-                    };
+                if (isSensitivePathResolved(args.path)) {
+                    return sensitivePathResponse(args.path);
                 }
                 try {
                     const output = await runMaCommand(
@@ -211,11 +168,8 @@ const session = await joinSession({
             handler: async (args) => {
                 const paths = args.paths || [];
                 for (const p of paths) {
-                    if (isSensitivePath(p)) {
-                        return {
-                            textResultForLlm: `Refused: sensitive path ${p}`,
-                            resultType: "denied",
-                        };
+                    if (isSensitivePathResolved(p)) {
+                        return sensitivePathResponse(p);
                     }
                 }
                 try {

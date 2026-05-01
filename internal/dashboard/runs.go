@@ -51,6 +51,16 @@ func newRunTracker(capacity int) *runTracker {
 	}
 }
 
+func (t *runTracker) Seed(details []RunDetail) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	for _, detail := range details {
+		t.runs[detail.ID] = detail
+	}
+	t.trim()
+}
+
 func (t *runTracker) Apply(event RunEvent) {
 	t.mu.Lock()
 	defer t.mu.Unlock()

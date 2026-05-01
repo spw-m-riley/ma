@@ -205,6 +205,56 @@ func TestServerTracksRunLifecycleEvents(t *testing.T) {
 	}
 }
 
+func TestServerLoadsRecentRunDetailsFromDurableStore(t *testing.T) {
+	root := t.TempDir()
+	store, err := OpenStore(root)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+
+	startedAt := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
+	if err := store.RecordFinished(FinishedRun{
+		ID:         "run-1",
+		Command:    "compress",
+		StartedAt:  startedAt,
+		FinishedAt: startedAt.Add(2 * time.Second),
+		Success:    true,
+		Changed:    true,
+		Result: app.Result{
+			Command: "compress",
+			Changed: true,
+			Stats: app.Stats{
+				InputBytes:         120,
+				OutputBytes:        72,
+				InputWords:         20,
+				OutputWords:        12,
+				InputApproxTokens:  28,
+				OutputApproxTokens: 17,
+			},
+			Output: "after",
+		},
+	}); err != nil {
+		t.Fatalf("record run: %v", err)
+	}
+
+	reopened, err := OpenStore(root)
+	if err != nil {
+		t.Fatalf("re-open store: %v", err)
+	}
+
+	handler := NewServer(reopened).Handler()
+	req := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/runs/run-1", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200 for durable run detail, got %d body=%q", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "after") {
+		t.Fatalf("expected durable run detail to include output body, got %q", recorder.Body.String())
+	}
+}
+
 func TestServerExposesOverviewSnapshot(t *testing.T) {
 	store, err := OpenStore(t.TempDir())
 	if err != nil {
@@ -284,8 +334,11 @@ func TestServerExposesOverviewSnapshot(t *testing.T) {
 	if len(payload.CommandUsage) != 1 || payload.CommandUsage[0].Command != "compress" {
 		t.Fatalf("expected command usage for compress, got %#v", payload.CommandUsage)
 	}
-	if len(payload.Runs) != 1 || payload.Runs[0].Status != eventKindStarted {
-		t.Fatalf("expected active run in overview snapshot, got %#v", payload.Runs)
+	if len(payload.Runs) != 2 {
+		t.Fatalf("expected durable and active runs in overview snapshot, got %#v", payload.Runs)
+	}
+	if payload.Runs[0].Status != eventKindStarted {
+		t.Fatalf("expected active run to sort first in overview snapshot, got %#v", payload.Runs)
 	}
 }
 
@@ -441,74 +494,6 @@ func TestServerRunDetailRendersIntentionalPanelStates(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("expected detail body to contain %q, got %q", want, body)
 		}
-	}
-}
-
-func TestRecentRunDetailsResetAcrossServerRestart(t *testing.T) {
-	root := t.TempDir()
-	store, err := OpenStore(root)
-	if err != nil {
-		t.Fatalf("open store: %v", err)
-	}
-
-	startedAt := time.Date(2026, 4, 30, 12, 0, 0, 0, time.UTC)
-	finishedAt := startedAt.Add(2 * time.Second)
-	if err := store.RecordFinished(FinishedRun{
-		ID:         "run-1",
-		Command:    "compress",
-		StartedAt:  startedAt,
-		FinishedAt: finishedAt,
-		Success:    true,
-		Changed:    true,
-		Result: app.Result{
-			Command: "compress",
-			Changed: true,
-			Stats: app.Stats{
-				InputBytes:         120,
-				OutputBytes:        72,
-				InputWords:         20,
-				OutputWords:        12,
-				InputApproxTokens:  28,
-				OutputApproxTokens: 17,
-			},
-		},
-	}); err != nil {
-		t.Fatalf("record run: %v", err)
-	}
-
-	server := NewServer(store)
-	postDashboardEvent(t, server.Handler(), RunEvent{
-		Kind:          eventKindFinished,
-		ID:            "run-1",
-		Command:       "compress",
-		StartedAt:     startedAt,
-		FinishedAt:    &finishedAt,
-		Success:       true,
-		PayloadStatus: payloadStatusObserved,
-		Input:         "before",
-		Result: app.Result{
-			Command: "compress",
-			Output:  "after",
-		},
-	})
-
-	restarted := NewServer(store).Handler()
-
-	detailReq := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/runs/run-1", nil)
-	detailRecorder := httptest.NewRecorder()
-	restarted.ServeHTTP(detailRecorder, detailReq)
-	if detailRecorder.Code != http.StatusNotFound {
-		t.Fatalf("expected recent detail to reset after restart, got %d", detailRecorder.Code)
-	}
-
-	overviewReq := httptest.NewRequest(http.MethodGet, "http://127.0.0.1/", nil)
-	overviewRecorder := httptest.NewRecorder()
-	restarted.ServeHTTP(overviewRecorder, overviewReq)
-	if overviewRecorder.Code != http.StatusOK {
-		t.Fatalf("expected overview to remain available, got %d", overviewRecorder.Code)
-	}
-	if !strings.Contains(overviewRecorder.Body.String(), "48 bytes") {
-		t.Fatalf("expected durable stats to survive restart, got %q", overviewRecorder.Body.String())
 	}
 }
 

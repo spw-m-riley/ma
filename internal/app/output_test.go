@@ -49,3 +49,22 @@ func TestWriteResultHumanUsesOutputBodyWhenPresent(t *testing.T) {
 		t.Fatalf("unexpected human output %q", got)
 	}
 }
+
+func TestWriteResultJSONIncludesProducedOutputWhenSet(t *testing.T) {
+	var out bytes.Buffer
+
+	result := Result{
+		Command:        "dedup",
+		ProducedOutput: true,
+		Output:         "report body",
+	}
+
+	if err := WriteResult(&out, result, true); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	want := "{\"command\":\"dedup\",\"changed\":false,\"stats\":{\"inputBytes\":0,\"outputBytes\":0,\"inputWords\":0,\"outputWords\":0,\"inputApproxTokens\":0,\"outputApproxTokens\":0},\"producedOutput\":true,\"output\":\"report body\"}\n"
+	if got := out.String(); got != want {
+		t.Fatalf("unexpected json output\nwant: %q\ngot:  %q", want, got)
+	}
+}

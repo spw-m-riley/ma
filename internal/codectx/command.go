@@ -38,11 +38,12 @@ func (SkeletonCommand) Run(args []string) (app.Result, error) {
 	}
 
 	return app.Result{
-		Command:  "skeleton",
-		Changed:  true,
-		Stats:    app.Measure(string(input), output),
-		Findings: warnings,
-		Output:   output,
+		Command:        "skeleton",
+		Changed:        output != string(input),
+		ProducedOutput: true,
+		Stats:          app.Measure(string(input), output),
+		Findings:       warnings,
+		Output:         output,
 	}, nil
 }
 
@@ -76,10 +77,11 @@ func (TrimImportsCommand) Run(args []string) (app.Result, error) {
 	}
 
 	return app.Result{
-		Command:  "trim-imports",
-		Changed:  true,
-		Stats:    app.Measure(string(input), output),
-		Findings: warnings,
-		Output:   output,
+		Command:        "trim-imports",
+		Changed:        output != string(input),
+		ProducedOutput: true,
+		Stats:          app.Measure(string(input), output),
+		Findings:       warnings,
+		Output:         output,
 	}, nil
 }
