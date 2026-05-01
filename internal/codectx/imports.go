@@ -3,8 +3,13 @@ package codectx
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
+	"go/format"
+	"go/parser"
+	"go/token"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +18,9 @@ var typeImportPattern = regexp.MustCompile(`^import\s+type\s+\{([^}]+)\}\s+from\
 
 func TrimImportsFile(path string, src []byte) (string, []string, error) {
 	switch filepath.Ext(path) {
+	case ".go":
+		output, err := trimGoImports(src)
+		return output, nil, err
 	case ".ts", ".tsx", ".js", ".jsx":
 		ext := filepath.Ext(path)
 		output, warnings, err := tsjsTrimImports(ext, src)
@@ -24,6 +32,50 @@ func TrimImportsFile(path string, src []byte) (string, []string, error) {
 	default:
 		return "", nil, fmt.Errorf("unsupported import trimming extension %q", filepath.Ext(path))
 	}
+}
+
+func trimGoImports(src []byte) (string, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	if err != nil {
+		return "", err
+	}
+
+	importSummaries := make([]string, 0, len(file.Imports))
+	decls := file.Decls[:0]
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT {
+			decls = append(decls, decl)
+			continue
+		}
+
+		for _, spec := range gen.Specs {
+			importSpec, ok := spec.(*ast.ImportSpec)
+			if !ok {
+				continue
+			}
+			importSummaries = append(importSummaries, summarizeGoImport(importSpec))
+		}
+	}
+
+	file.Decls = decls
+	file.Imports = nil
+
+	var body bytes.Buffer
+	if err := format.Node(&body, fset, file); err != nil {
+		return "", err
+	}
+	if len(importSummaries) == 0 {
+		return body.String(), nil
+	}
+
+	var out bytes.Buffer
+	out.WriteString("// imports: ")
+	out.WriteString(strings.Join(importSummaries, "; "))
+	out.WriteString("\n\n")
+	out.WriteString(body.String())
+	return out.String(), nil
 }
 
 func trimJSImportBlock(input string) string {
@@ -93,4 +145,15 @@ func formatImportSummary(module string, names []string) string {
 		return fmt.Sprintf("%s(%s)", module, strings.Join(names, ", "))
 	}
 	return fmt.Sprintf("%s{%d}", module, len(names))
+}
+
+func summarizeGoImport(importSpec *ast.ImportSpec) string {
+	path := strings.Trim(importSpec.Path.Value, "\"'")
+	if unquoted, err := strconv.Unquote(importSpec.Path.Value); err == nil {
+		path = unquoted
+	}
+	if importSpec.Name == nil {
+		return path
+	}
+	return fmt.Sprintf("%s=%s", importSpec.Name.Name, path)
 }

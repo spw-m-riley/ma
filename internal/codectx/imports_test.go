@@ -40,6 +40,31 @@ func TestTrimImportsTS(t *testing.T) {
 	}
 }
 
+func TestTrimImportsGo(t *testing.T) {
+	inputPath := filepath.Join("..", "..", "testdata", "code", "sample.go")
+	input, err := os.ReadFile(inputPath)
+	if err != nil {
+		t.Fatalf("read input: %v", err)
+	}
+
+	got, warnings, err := TrimImportsFile(inputPath, input)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("expected no warnings, got %#v", warnings)
+	}
+	if !strings.Contains(got, "// imports: context") {
+		t.Fatalf("expected go import summary, got %q", got)
+	}
+	if strings.Contains(got, "import \"context\"") {
+		t.Fatalf("expected original import line to be removed, got %q", got)
+	}
+	if !strings.Contains(got, "func Process(ctx context.Context, value string) (string, error) {") {
+		t.Fatalf("expected function body to remain, got %q", got)
+	}
+}
+
 func TestCodeContextReduction(t *testing.T) {
 	goInputPath := filepath.Join("..", "..", "testdata", "code", "sample.go")
 	goInput, err := os.ReadFile(goInputPath)

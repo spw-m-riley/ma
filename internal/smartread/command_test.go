@@ -117,6 +117,41 @@ func TestSmartReadCodeFile(t *testing.T) {
 	}
 }
 
+func TestSmartReadCodeFileComposesImportReductionAndSkeleton(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "main.go")
+
+	var lines []string
+	lines = append(lines, "package main")
+	lines = append(lines, "")
+	lines = append(lines, "import \"context\"")
+	lines = append(lines, "")
+	for i := 0; i < 210; i++ {
+		lines = append(lines, fmt.Sprintf("func example%d(ctx context.Context) error {", i))
+		lines = append(lines, "\treturn ctx.Err()")
+		lines = append(lines, "}")
+		lines = append(lines, "")
+	}
+	content := strings.Join(lines, "\n")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write test file: %v", err)
+	}
+
+	result, err := NewCommand().Run([]string{path})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(result.Output, "// imports: context") {
+		t.Fatalf("expected import summary in output, got %q", result.Output)
+	}
+	if strings.Contains(result.Output, "return ctx.Err()") {
+		t.Fatalf("expected function bodies to be removed, got %q", result.Output)
+	}
+	if !strings.Contains(result.Output, "func example0(ctx context.Context) error") {
+		t.Fatalf("expected skeletonized function signature, got %q", result.Output)
+	}
+}
+
 func TestSmartReadReductionFailureFallback(t *testing.T) {
 	dir := t.TempDir()
 	// A file with an extension that classifies as Config but can't be minified

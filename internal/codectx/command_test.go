@@ -37,6 +37,21 @@ func TestTrimImportsCommandRunReturnsTrimmedOutput(t *testing.T) {
 	}
 }
 
+func TestTrimImportsCommandRunReturnsGoTrimmedOutput(t *testing.T) {
+	inputPath := filepath.Join("..", "..", "testdata", "code", "sample.go")
+
+	result, err := NewTrimImportsCommand().Run([]string{inputPath})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if result.Command != "trim-imports" {
+		t.Fatalf("expected trim-imports command, got %q", result.Command)
+	}
+	if !strings.Contains(result.Output, "// imports: context") {
+		t.Fatalf("unexpected go trim-imports output %q", result.Output)
+	}
+}
+
 func TestSkeletonCommandDoesNotWriteFiles(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.go")

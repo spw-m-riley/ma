@@ -28,9 +28,10 @@ brew install --cask spw-m-riley/tools/ma
 | `ma optimize-md <file>` | Markdown structure cleanup for blank lines, list markers, and tables |
 | `ma minify-schema <file>` | JSON/YAML schema minification by removing verbose metadata |
 | `ma skeleton <file>` | Code skeleton extraction for Go and parser-backed TS/JS reduction, with heuristic fallback when built without CGo |
-| `ma trim-imports <file>` | Import-block summarization for TS/JS-style files, with heuristic fallback when built without CGo |
+| `ma trim-imports <file>` | Import-block summarization for Go and TS/JS-style files, with heuristic fallback for TS/JS when built without CGo |
 | `ma dedup <path...>` | Exact and near-duplicate reporting across instruction-style documents |
 | `ma compact-history <transcript>` | Transcript compaction for an explicit JSON message contract |
+| `ma smart-read <file>` | Automatic file reduction that classifies large files and applies the matching reducer; code files use import summarization plus skeletonization when supported |
 
 All commands are deterministic and offline.
 
@@ -58,7 +59,7 @@ Mutating commands (`compress`, `optimize-md`, `minify-schema`, `compact-history`
 go build ./cmd/ma
 ```
 
-When built with `CGO_ENABLED=1`, `ma skeleton` and `ma trim-imports` use tree-sitter for `.ts`, `.tsx`, `.js`, and `.jsx`. That path requires a working C toolchain. Builds with `CGO_ENABLED=0` still work, but TS/JS processing falls back to the existing heuristic reducers.
+Go code reduction stays on the standard-library parser and formatter path. When built with `CGO_ENABLED=1`, `ma skeleton` and `ma trim-imports` use tree-sitter for `.ts`, `.tsx`, `.js`, and `.jsx`. That path requires a working C toolchain. Builds with `CGO_ENABLED=0` still work, but TS/JS processing falls back to the existing heuristic reducers.
 
 ## Examples
 
@@ -70,7 +71,9 @@ ma optimize-md README.md --json
 ma minify-schema schema.json --write
 
 ma skeleton internal/service.go
+ma trim-imports internal/service.go
 ma trim-imports src/file.ts --json
+ma smart-read internal/service.go --json
 
 ma dedup .github/copilot-instructions.md instructions/*.instructions.md
 ma compact-history transcript.json --json

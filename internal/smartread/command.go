@@ -79,7 +79,7 @@ func reduce(path string, input string, classification detect.Classification) (st
 		return output, nil, nil
 
 	case detect.Code:
-		output, warnings, err := codectx.SkeletonFile(path, []byte(input))
+		output, warnings, err := codectx.ReduceFile(path, []byte(input))
 		if err != nil {
 			return "", nil, err
 		}
