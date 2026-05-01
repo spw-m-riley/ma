@@ -84,14 +84,14 @@ type recentRunRow struct {
 }
 
 type trendRow struct {
-	Day               string `json:"day"`
+	Month             string `json:"month"`
 	BytesSaved        int    `json:"bytesSaved"`
 	WordsSaved        int    `json:"wordsSaved"`
 	ApproxTokensSaved int    `json:"approxTokensSaved"`
 }
 
 type trendDisplayRow struct {
-	Day               string
+	Month             string
 	BytesSaved        int
 	WordsSaved        int
 	ApproxTokensSaved int
@@ -789,15 +789,15 @@ var statsPageTemplate = template.Must(template.New("stats").Parse(`<!DOCTYPE htm
     <div class="stats-grid">
       <section class="panel">
         <h2>Usage trends</h2>
-        <p>Daily savings stay text-first, with a small token accent to help comparisons without taking over the page.</p>
+        <p>Monthly savings stay text-first, with a small token accent to help comparisons without taking over the page.</p>
         <table>
           <thead>
-            <tr><th>Day</th><th>Bytes saved</th><th>Words saved</th><th>Approx tokens saved</th><th>Accent</th></tr>
+            <tr><th>Month</th><th>Bytes saved</th><th>Words saved</th><th>Approx tokens saved</th><th>Accent</th></tr>
           </thead>
           <tbody id="usage-trend-rows">
             {{ range .TrendRows }}
             <tr>
-              <td>{{ .Day }}</td>
+              <td>{{ .Month }}</td>
               <td>{{ .BytesSaved }}</td>
               <td>{{ .WordsSaved }}</td>
               <td>{{ .ApproxTokensSaved }}</td>
@@ -872,10 +872,10 @@ var statsPageTemplate = template.Must(template.New("stats").Parse(`<!DOCTYPE htm
 
       function trendNote(tokens) {
         if (tokens < 0) {
-          return 'negative net day';
+          return 'negative net month';
         }
         if (tokens === 0) {
-          return 'flat day';
+          return 'flat month';
         }
         return 'steady savings';
       }
@@ -887,7 +887,7 @@ var statsPageTemplate = template.Must(template.New("stats").Parse(`<!DOCTYPE htm
         return rows.map(function(row) {
           const width = barWidth(rows, row.approxTokensSaved);
           return '<tr>' +
-            '<td>' + escapeHTML(row.day) + '</td>' +
+            '<td>' + escapeHTML(row.month) + '</td>' +
             '<td>' + escapeHTML(row.bytesSaved) + '</td>' +
             '<td>' + escapeHTML(row.wordsSaved) + '</td>' +
             '<td>' + escapeHTML(row.approxTokensSaved) + '</td>' +
@@ -1385,11 +1385,11 @@ func sortedCommandUsage(counts map[string]int) []commandUsage {
 func buildTrendRows(history []HistoryEntry) []trendRow {
 	rows := make(map[string]*trendRow)
 	for _, entry := range history {
-		day := entry.StartedAt.In(time.UTC).Format("2006-01-02")
-		row := rows[day]
+		month := entry.StartedAt.In(time.UTC).Format("2006-01")
+		row := rows[month]
 		if row == nil {
-			row = &trendRow{Day: day}
-			rows[day] = row
+			row = &trendRow{Month: month}
+			rows[month] = row
 		}
 		row.BytesSaved += entry.Stats.InputBytes - entry.Stats.OutputBytes
 		row.WordsSaved += entry.Stats.InputWords - entry.Stats.OutputWords
@@ -1397,14 +1397,14 @@ func buildTrendRows(history []HistoryEntry) []trendRow {
 	}
 
 	keys := make([]string, 0, len(rows))
-	for day := range rows {
-		keys = append(keys, day)
+	for month := range rows {
+		keys = append(keys, month)
 	}
 	sort.Strings(keys)
 
 	result := make([]trendRow, 0, len(keys))
-	for _, day := range keys {
-		result = append(result, *rows[day])
+	for _, month := range keys {
+		result = append(result, *rows[month])
 	}
 	return result
 }
@@ -1447,7 +1447,7 @@ func buildTrendDisplayRows(rows []trendRow) []trendDisplayRow {
 	displayRows := make([]trendDisplayRow, 0, len(rows))
 	for _, row := range rows {
 		displayRows = append(displayRows, trendDisplayRow{
-			Day:               row.Day,
+			Month:             row.Month,
 			BytesSaved:        row.BytesSaved,
 			WordsSaved:        row.WordsSaved,
 			ApproxTokensSaved: row.ApproxTokensSaved,
@@ -1524,18 +1524,18 @@ func buildOutcomeContext(summary Summary, trends []trendRow, insights []commandI
 			Tone:  "tone-accent",
 		})
 	}
-	if bestDay, ok := strongestSavingsDay(trends); ok {
+	if bestMonth, ok := strongestSavingsMonth(trends); ok {
 		items = append(items, statsContextItem{
-			Label: "Strongest savings day",
-			Value: bestDay.Day,
-			Note:  fmt.Sprintf("%d approx tokens and %d bytes saved.", bestDay.ApproxTokensSaved, bestDay.BytesSaved),
+			Label: "Strongest savings month",
+			Value: bestMonth.Month,
+			Note:  fmt.Sprintf("%d approx tokens and %d bytes saved.", bestMonth.ApproxTokensSaved, bestMonth.BytesSaved),
 			Tone:  "tone-quiet",
 		})
 	}
 	return items
 }
 
-func strongestSavingsDay(rows []trendRow) (trendRow, bool) {
+func strongestSavingsMonth(rows []trendRow) (trendRow, bool) {
 	if len(rows) == 0 {
 		return trendRow{}, false
 	}
@@ -1710,9 +1710,9 @@ func formatTimestamp(value time.Time) string {
 func trendNote(tokens int) string {
 	switch {
 	case tokens < 0:
-		return "negative net day"
+		return "negative net month"
 	case tokens == 0:
-		return "flat day"
+		return "flat month"
 	default:
 		return "steady savings"
 	}

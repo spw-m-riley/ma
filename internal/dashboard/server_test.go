@@ -518,7 +518,7 @@ func TestServerRendersDedicatedStatsView(t *testing.T) {
 		t.Fatalf("open store: %v", err)
 	}
 
-	firstStartedAt := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+	firstStartedAt := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
 	secondStartedAt := time.Date(2026, 4, 30, 13, 0, 0, 0, time.UTC)
 
 	if err := store.RecordFinished(FinishedRun{
@@ -577,8 +577,8 @@ func TestServerRendersDedicatedStatsView(t *testing.T) {
 	body := recorder.Body.String()
 	for _, want := range []string{
 		"Usage trends",
-		"2026-04-29",
-		"2026-04-30",
+		"2026-03",
+		"2026-04",
 		"compress",
 		"validate",
 		"1 successful / 1 failed",
@@ -595,7 +595,7 @@ func TestServerRendersStatsAnalysisPanels(t *testing.T) {
 		t.Fatalf("open store: %v", err)
 	}
 
-	firstStartedAt := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+	firstStartedAt := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
 	secondStartedAt := time.Date(2026, 4, 30, 13, 0, 0, 0, time.UTC)
 
 	if err := store.RecordFinished(FinishedRun{
@@ -671,7 +671,7 @@ func TestServerExposesStatsSnapshot(t *testing.T) {
 		t.Fatalf("open store: %v", err)
 	}
 
-	firstStartedAt := time.Date(2026, 4, 29, 12, 0, 0, 0, time.UTC)
+	firstStartedAt := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
 	secondStartedAt := time.Date(2026, 4, 30, 13, 0, 0, 0, time.UTC)
 
 	if err := store.RecordFinished(FinishedRun{
@@ -749,8 +749,8 @@ func TestServerExposesStatsSnapshot(t *testing.T) {
 	if len(payload.TrendRows) != 2 {
 		t.Fatalf("expected 2 trend rows, got %#v", payload.TrendRows)
 	}
-	if payload.TrendRows[0].Day != "2026-04-29" {
-		t.Fatalf("expected first trend row to be for 2026-04-29, got %#v", payload.TrendRows)
+	if payload.TrendRows[0].Month != "2026-03" {
+		t.Fatalf("expected first trend row to be for 2026-03, got %#v", payload.TrendRows)
 	}
 }
 
