@@ -1,17 +1,17 @@
 module github.com/spw-m-riley/ma
 
-go 1.25.9
+go 1.26
 
 require (
 	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
 	github.com/spf13/cobra v1.10.2
-	github.com/tiktoken-go/tokenizer v0.7.0
+	github.com/tiktoken-go/tokenizer v0.8.1
 	github.com/yuin/goldmark v1.8.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/dlclark/regexp2/v2 v2.5.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 )
